@@ -21,7 +21,7 @@ type contextKey struct {
 func (k *contextKey) String() string { return "tnet/tcpserver context value " + k.name }
 
 var (
-	ServerContextKey = &contextKey{"tcp-server"}
+	ServerContextKey    = &contextKey{"tcp-server"}
 	LocalAddrContextKey = &contextKey{"local-addr"}
 )
 
@@ -31,16 +31,14 @@ const (
 	StateNew ConnState = iota
 	StateActive
 	StateIdle
-	StateHijacked
 	StateClosed
 )
 
 var stateName = map[ConnState]string{
-	StateNew:      "new",
-	StateActive:   "active",
-	StateIdle:     "idle",
-	StateHijacked: "hijacked",
-	StateClosed:   "closed",
+	StateNew:    "new",
+	StateActive: "active",
+	StateIdle:   "idle",
+	StateClosed: "closed",
 }
 
 func (c ConnState) String() string {
@@ -48,155 +46,29 @@ func (c ConnState) String() string {
 }
 
 type conn struct {
-	server *Server
-	rwc net.Conn
+	server    *Server
+	rwc       net.Conn
 	cancelCtx context.CancelFunc
 
+	r    *connReader
+	bufr *bufio.Reader
+	bufw *bufio.Writer
+	werr error
+
 	remoteAddr string
-	curState struct{ atomic uint64 } // packed (unixtime<<8|uint8(ConnState))
+	curState   struct{ atomic uint64 } // packed (unixtime<<8|uint8(ConnState))
 
 	mu sync.Mutex
 }
 
 var ErrAbortHandler = errors.New("tnet/tcpserver: abort Handler")
 
-func (c *conn) serve(ctx context.Context) {
-	c.remoteAddr = c.rwc.RemoteAddr().String()
-	ctx = context.WithValue(ctx, LocalAddrContextKey, c.rwc.LocalAddr())
-	defer func() {
-		if err := recover(); err != nil && err != ErrAbortHandler {
-			const size = 64 << 10
-			buf := make([]byte, size)
-			buf = buf[:runtime.Stack(buf, false)]
-			c.server.logf("tnet/tcpserver: panic serving %v: %v\n%s", c.remoteAddr, err, buf)
-		}
-		if !c.hijacked() {
-			c.close()
-			c.setState(c.rwc, StateClosed)
-		}
-	}()
-
-	ctx, cancelCtx := context.WithCancel(ctx)
-	c.cancelCtx = cancelCtx
-	defer cancelCtx()
-
-	c.r = &connReader{conn: c}
-	c.bufr = newBufioReader(c.r)
-	c.bufw = newBufioWriterSize(checkConnErrorWriter{c}, 4<<10)
-
-	for {
-		w, err := c.readRequest(ctx)
-		if c.r.remain != c.server.initialReadLimitSize() {
-			// If we read any bytes off the wire, we're active.
-			c.setState(c.rwc, StateActive)
-		}
-		if err != nil {
-			const errorHeaders = "\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n"
-
-			switch {
-			case err == errTooLarge:
-				// Their HTTP client may or may not be
-				// able to read this if we're
-				// responding to them and hanging up
-				// while they're still writing their
-				// request. Undefined behavior.
-				const publicErr = "431 Request Header Fields Too Large"
-				fmt.Fprintf(c.rwc, "HTTP/1.1 "+publicErr+errorHeaders+publicErr)
-				c.closeWriteAndWait()
-				return
-
-			case isUnsupportedTEError(err):
-				// Respond as per RFC 7230 Section 3.3.1 which says,
-				//      A server that receives a request message with a
-				//      transfer coding it does not understand SHOULD
-				//      respond with 501 (Unimplemented).
-				code := StatusNotImplemented
-
-				// We purposefully aren't echoing back the transfer-encoding's value,
-				// so as to mitigate the risk of cross side scripting by an attacker.
-				fmt.Fprintf(c.rwc, "HTTP/1.1 %d %s%sUnsupported transfer encoding", code, StatusText(code), errorHeaders)
-				return
-
-			case isCommonNetReadError(err):
-				return // don't reply
-
-			default:
-				publicErr := "400 Bad Request"
-				if v, ok := err.(badRequestError); ok {
-					publicErr = publicErr + ": " + string(v)
-				}
-
-				fmt.Fprintf(c.rwc, "HTTP/1.1 "+publicErr+errorHeaders+publicErr)
-				return
-			}
-		}
-
-		// Expect 100 Continue support
-		req := w.req
-		if req.expectsContinue() {
-			if req.ProtoAtLeast(1, 1) && req.ContentLength != 0 {
-				// Wrap the Body reader with one that replies on the connection
-				req.Body = &expectContinueReader{readCloser: req.Body, resp: w}
-			}
-		} else if req.Header.get("Expect") != "" {
-			w.sendExpectationFailed()
-			return
-		}
-
-		c.curReq.Store(w)
-
-		if requestBodyRemains(req.Body) {
-			registerOnHitEOF(req.Body, w.conn.r.startBackgroundRead)
-		} else {
-			w.conn.r.startBackgroundRead()
-		}
-
-		// HTTP cannot have multiple simultaneous active requests.[*]
-		// Until the server replies to this request, it can't read another,
-		// so we might as well run the handler in this goroutine.
-		// [*] Not strictly true: HTTP pipelining. We could let them all process
-		// in parallel even if their responses need to be serialized.
-		// But we're not going to implement HTTP pipelining because it
-		// was never deployed in the wild and the answer is HTTP/2.
-		serverHandler{c.server}.ServeHTTP(w, w.req)
-		w.cancelCtx()
-		if c.hijacked() {
-			return
-		}
-		w.finishRequest()
-		if !w.shouldReuseConnection() {
-			if w.requestBodyLimitHit || w.closedRequestBodyEarly() {
-				c.closeWriteAndWait()
-			}
-			return
-		}
-		c.setState(c.rwc, StateIdle)
-		c.curReq.Store((*response)(nil))
-
-		if !w.conn.server.doKeepAlives() {
-			// We're in shutdown mode. We might've replied
-			// to the user without "Connection: close" and
-			// they might think they can send another
-			// request, but such is life with HTTP/1.1.
-			return
-		}
-
-		if d := c.server.idleTimeout(); d != 0 {
-			c.rwc.SetReadDeadline(time.Now().Add(d))
-			if _, err := c.bufr.Peek(4); err != nil {
-				return
-			}
-		}
-		c.rwc.SetReadDeadline(time.Time{})
-	}
-}
-
-func (c *conn) setState(nc net.Conn, state ConnState) {
+func (c *conn) setState(state ConnState) {
 	s := c.server
 	switch state {
 	case StateNew:
 		s.trackConn(c, true)
-	case StateHijacked, StateClosed:
+	case StateClosed:
 		s.trackConn(c, false)
 	}
 	if state > 0xff || state < 0 {
@@ -204,14 +76,42 @@ func (c *conn) setState(nc net.Conn, state ConnState) {
 	}
 	packedState := uint64(time.Now().Unix()<<8) | uint64(state)
 	atomic.StoreUint64(&c.curState.atomic, packedState)
-	if hook := s.ConnState; hook != nil {
-		hook(nc, state)
-	}
 }
 
 func (c *conn) getState() (state ConnState, unixSec int64) {
 	packedState := atomic.LoadUint64(&c.curState.atomic)
 	return ConnState(packedState & 0xff), int64(packedState >> 8)
+}
+
+func (c *conn) finalFlush() {
+	if c.bufr != nil {
+		// Steal the bufio.Reader (~4KB worth of memory) and its associated
+		// reader for a future connection.
+		putBufioReader(c.bufr)
+		c.bufr = nil
+	}
+
+	if c.bufw != nil {
+		c.bufw.Flush()
+		// Steal the bufio.Writer (~4KB worth of memory) and its associated
+		// writer for a future connection.
+		putBufioWriter(c.bufw)
+		c.bufw = nil
+	}
+}
+
+// Close the connection.
+func (c *conn) close() {
+	c.finalFlush()
+	c.rwc.Close()
+}
+
+func (c *conn) BufferReader() *bufio.Reader {
+	return c.bufr
+}
+
+func (c *conn) BufferWriter() *bufio.Writer {
+	return c.bufw
 }
 
 const maxInt64 = 1<<63 - 1
@@ -382,46 +282,55 @@ func (oc *onceCloseListener) Close() error {
 
 func (oc *onceCloseListener) close() { oc.closeErr = oc.Listener.Close() }
 
-type RawTCPServerHandler interface {
-	ServeTCP()
+type atomicBool int32
+
+func (b *atomicBool) isSet() bool { return atomic.LoadInt32((*int32)(b)) != 0 }
+func (b *atomicBool) setTrue()    { atomic.StoreInt32((*int32)(b), 1) }
+
+type RawTCPHandler interface {
+	ServeTCP(ctx context.Context, conn *conn)
 }
 
-type RawTCPConnectionServer struct {
-	Handler RawTCPServerHandler
-	conn *conn
+type RawTCPConnectionHandler struct {
+	Handler RawTCPHandler
+	conn    *conn
 }
 
-func (cs *RawTCPConnectionServer) Serve(ctx context.Context, conn *conn) {
+func (cs *RawTCPConnectionHandler) Serve(ctx context.Context, conn *conn) {
 	cs.conn = conn
 	if h := cs.Handler; h != nil {
-		h.ServeTCP()
+		h.ServeTCP(ctx, conn)
 	}
 }
 
-type ConnectionServer interface {
+type disconnectHandler struct {
+}
+
+func (h *disconnectHandler) Serve(ctx context.Context, conn *conn) {
+}
+
+var defaultConnectionHandler disconnectHandler
+
+type ConnectionHandler interface {
 	Serve(ctx context.Context, conn *conn)
 }
 
 type Server struct {
-	Addr string
-	ConnectionServer ConnectionServer
-	//Handler Handler // handler to invoke, http.DefaultServeMux if nil
+	Addr    string
+	Handler ConnectionHandler
 
 	mu         sync.Mutex
 	listeners  map[*net.Listener]struct{}
 	activeConn map[*conn]struct{}
 
-	ErrorLog *log.Logger
+	ErrorLog    *log.Logger
 	BaseContext func(net.Listener) context.Context
 	ConnContext func(ctx context.Context, c net.Conn) context.Context
-	ConnState func(net.Conn, ConnState)
 
-	inShutdown        int32     // accessed atomically (non-zero means we're in Shutdown)
+	inShutdown atomicBool // true when when server is in shutdown
 	onShutdown []func()
 	doneChan   chan struct{}
 }
-
-var shutdownPollInterval = 500 * time.Millisecond
 
 var ErrServerClosed = errors.New("tnet/tcpserver: Server closed")
 
@@ -437,13 +346,12 @@ func (s *Server) ListenAndServe() error {
 	if err != nil {
 		return err
 	}
+	s.logf("tnet/tcpserver: serve on %s\n", ln.Addr().String())
 	return s.Serve(ln)
 }
 
 func (s *Server) shuttingDown() bool {
-	// TODO: replace inShutdown with the existing atomicBool type;
-	// see https://github.com/golang/go/issues/20239#issuecomment-381434582
-	return atomic.LoadInt32(&s.inShutdown) != 0
+	return s.inShutdown.isSet()
 }
 
 func (s *Server) RegisterOnShutdown(f func()) {
@@ -452,8 +360,23 @@ func (s *Server) RegisterOnShutdown(f func()) {
 	s.mu.Unlock()
 }
 
+func (s *Server) Close() error {
+	s.inShutdown.setTrue()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.closeDoneChanLocked()
+	err := s.closeListenersLocked()
+	for c := range s.activeConn {
+		c.rwc.Close()
+		delete(s.activeConn, c)
+	}
+	return err
+}
+
+var shutdownPollInterval = 500 * time.Millisecond
+
 func (s *Server) Shutdown(ctx context.Context) error {
-	atomic.StoreInt32(&s.inShutdown, 1)
+	s.inShutdown.setTrue()
 
 	s.mu.Lock()
 	lnerr := s.closeListenersLocked()
@@ -466,7 +389,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	ticker := time.NewTicker(shutdownPollInterval)
 	defer ticker.Stop()
 	for {
-		if s.closeIdleConns() {
+		if s.closeIdleConns() && s.numListeners() == 0 {
 			return lnerr
 		}
 		select {
@@ -483,9 +406,14 @@ func (s *Server) closeListenersLocked() error {
 		if cerr := (*ln).Close(); cerr != nil && err == nil {
 			err = cerr
 		}
-		delete(s.listeners, ln)
 	}
 	return err
+}
+
+func (s *Server) numListeners() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.listeners)
 }
 
 func (s *Server) closeDoneChanLocked() {
@@ -578,7 +506,7 @@ func (s *Server) Serve(l net.Listener) error {
 				if max := 1 * time.Second; tempDelay > max {
 					tempDelay = max
 				}
-				s.logf("http: Accept error: %v; retrying in %v", err, tempDelay)
+				s.logf("tnet/tcpserver: Accept error: %v; retrying in %v", err, tempDelay)
 				time.Sleep(tempDelay)
 				continue
 			}
@@ -594,16 +522,8 @@ func (s *Server) Serve(l net.Listener) error {
 		tempDelay = 0
 
 		c := s.newConn(rw)
-		c.setState(c.rwc, StateNew) // before Serve can return
-		if csrv := s.ConnectionServer; csrv != nil {
-			go func() {
-				csctx, cancelCtx := context.WithCancel(ctx)
-				c.cancelCtx = cancelCtx
-				defer cancelCtx()
-				c.r = &connReader{conn: c}
-				csrv.Serve(csctx, nil)
-			}()
-		}
+		c.setState(StateNew) // before Serve can return
+		go s.connServe(connCtx, c)
 	}
 }
 
@@ -658,6 +578,32 @@ func (s *Server) newConn(rwc net.Conn) *conn {
 	return c
 }
 
+func (s *Server) connServe(ctx context.Context, conn *conn) {
+	defer func() {
+		if err := recover(); err != nil && err != ErrAbortHandler {
+			const size = 64 << 10
+			buf := make([]byte, size)
+			buf = buf[:runtime.Stack(buf, false)]
+			conn.server.logf("tnet/tcpserver: panic serving %v: %v\n%s", conn.remoteAddr, err, buf)
+		}
+		conn.close()
+		conn.setState(StateClosed)
+	}()
+
+	ctx, cancelCtx := context.WithCancel(ctx)
+	conn.cancelCtx = cancelCtx
+	defer cancelCtx()
+
+	conn.r = &connReader{conn: conn}
+	conn.bufr = newBufioReader(conn.r)
+	conn.bufw = newBufioWriterSize(checkConnErrorWriter{conn}, 4<<10)
+	h := s.Handler
+	if h == nil {
+		h = &defaultConnectionHandler
+	}
+	h.Serve(ctx, conn)
+}
+
 type loggingConn struct {
 	name string
 	net.Conn
@@ -699,12 +645,82 @@ func (c *loggingConn) Close() (err error) {
 	return
 }
 
-func NewServer() *Server {
-	return &Server{
+var (
+	bufioReaderPool   sync.Pool
+	bufioWriter2kPool sync.Pool
+	bufioWriter4kPool sync.Pool
+)
+
+var copyBufPool = sync.Pool{
+	New: func() interface{} {
+		b := make([]byte, 32*1024)
+		return &b
+	},
+}
+
+func bufioWriterPool(size int) *sync.Pool {
+	switch size {
+	case 2 << 10:
+		return &bufioWriter2kPool
+	case 4 << 10:
+		return &bufioWriter4kPool
+	}
+	return nil
+}
+
+func newBufioReader(r io.Reader) *bufio.Reader {
+	if v := bufioReaderPool.Get(); v != nil {
+		br := v.(*bufio.Reader)
+		br.Reset(r)
+		return br
+	}
+	// Note: if this reader size is ever changed, update
+	// TestHandlerBodyClose's assumptions.
+	return bufio.NewReader(r)
+}
+
+func putBufioReader(br *bufio.Reader) {
+	br.Reset(nil)
+	bufioReaderPool.Put(br)
+}
+
+func newBufioWriterSize(w io.Writer, size int) *bufio.Writer {
+	pool := bufioWriterPool(size)
+	if pool != nil {
+		if v := pool.Get(); v != nil {
+			bw := v.(*bufio.Writer)
+			bw.Reset(w)
+			return bw
+		}
+	}
+	return bufio.NewWriterSize(w, size)
+}
+
+func putBufioWriter(bw *bufio.Writer) {
+	bw.Reset(nil)
+	if pool := bufioWriterPool(bw.Available()); pool != nil {
+		pool.Put(bw)
 	}
 }
 
-func ListenAndServe(addr string, csrv ConnectionServer) error {
-	server := &Server{Addr: addr, ConnectionServer: csrv}
+type checkConnErrorWriter struct {
+	c *conn
+}
+
+func (w checkConnErrorWriter) Write(p []byte) (n int, err error) {
+	n, err = w.c.rwc.Write(p)
+	if err != nil && w.c.werr == nil {
+		w.c.werr = err
+		w.c.cancelCtx()
+	}
+	return
+}
+
+func NewServer() *Server {
+	return &Server{}
+}
+
+func ListenAndServe(addr string, handler ConnectionHandler) error {
+	server := &Server{Addr: addr, Handler: handler}
 	return server.ListenAndServe()
 }
