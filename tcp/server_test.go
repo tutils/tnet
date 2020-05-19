@@ -69,7 +69,7 @@ func TestScanner(t *testing.T) {
 		var l int64
 		binary.Read(bytes.NewReader(data[2:]), binary.BigEndian, &l)
 		if int64(len(data[10:])) >= l {
-			return 10+int(l), data[10:10+l], nil
+			return 10 + int(l), data[10 : 10+l], nil
 		}
 		if atEOF {
 			return 0, nil, bufio.ErrFinalToken

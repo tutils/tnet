@@ -453,10 +453,6 @@ func (s *Server) Serve(l net.Listener) error {
 	l = &onceCloseListener{Listener: l}
 	defer l.Close()
 
-	//if err := s.setupHTTP2_Serve(); err != nil {
-	//	return err
-	//}
-
 	if !s.trackListener(&l, true) {
 		return ErrServerClosed
 	}
