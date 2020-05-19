@@ -24,9 +24,11 @@ func (h *chandler) ServeTun(r io.Reader, w io.Writer) {
 }
 
 func TestNewClient(t *testing.T) {
-	h := &chandler{t:t}
+	h := &chandler{t: t}
 	c := NewClient(
 		WithClientHandler(h),
 	)
-	c.DialAndServe()
+	if err := c.DialAndServe(); err != nil {
+		t.Fatal(err)
+	}
 }

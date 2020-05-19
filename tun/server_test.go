@@ -27,9 +27,11 @@ func (h *shandler) ServeTun(r io.Reader, w io.Writer) {
 }
 
 func TestNewServer(t *testing.T) {
-	h := &shandler{t:t}
+	h := &shandler{t: t}
 	s := NewServer(
 		WithServerHandler(h),
 	)
-	s.ListenAndServe()
+	if err := s.ListenAndServe(); err != nil {
+		t.Fatal(err)
+	}
 }
