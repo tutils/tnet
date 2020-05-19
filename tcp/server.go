@@ -1,4 +1,4 @@
-package tcpserver
+package tcp
 
 import (
 	"bufio"
@@ -286,22 +286,6 @@ type atomicBool int32
 
 func (b *atomicBool) isSet() bool { return atomic.LoadInt32((*int32)(b)) != 0 }
 func (b *atomicBool) setTrue()    { atomic.StoreInt32((*int32)(b), 1) }
-
-type RawTCPHandler interface {
-	ServeTCP(ctx context.Context, conn *conn)
-}
-
-type RawTCPConnectionHandler struct {
-	Handler RawTCPHandler
-	conn    *conn
-}
-
-func (cs *RawTCPConnectionHandler) Serve(ctx context.Context, conn *conn) {
-	cs.conn = conn
-	if h := cs.Handler; h != nil {
-		h.ServeTCP(ctx, conn)
-	}
-}
 
 type disconnectHandler struct {
 }
