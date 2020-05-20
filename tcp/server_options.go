@@ -17,6 +17,15 @@ type ServerOptions struct {
 
 type ServerOption func(opts *ServerOptions)
 
+func newServerOptions(opts ...ServerOption) *ServerOptions {
+	opt := &ServerOptions{}
+
+	for _, o := range opts {
+		o(opt)
+	}
+	return opt
+}
+
 func WithListenAddress(addr string) ServerOption {
 	return func(opts *ServerOptions) {
 		opts.addr = addr

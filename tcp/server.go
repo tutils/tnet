@@ -106,6 +106,14 @@ func (c *Conn) close() {
 	c.rwc.Close()
 }
 
+func (c *Conn) Reader() io.Reader {
+	return c.r
+}
+
+func (c *Conn) Writer() io.Writer {
+	return c.rwc
+}
+
 func (c *Conn) BufferReader() *bufio.Reader {
 	return c.bufr
 }
@@ -122,12 +130,12 @@ func (c *Conn) SetInfiniteReadLimit() {
 	c.r.setInfiniteReadLimit()
 }
 
-func (c *Conn) Reader() io.Reader {
-	return c.r
+func (c *Conn) AbortPendingRead() {
+	c.r.abortPendingRead()
 }
 
-func (c *Conn) Writer() io.Writer {
-	return c.rwc
+func (c *Conn) CancelContext() {
+	c.cancelCtx()
 }
 
 const maxInt64 = 1<<63 - 1
@@ -709,10 +717,7 @@ func (w checkConnErrorWriter) Write(p []byte) (n int, err error) {
 }
 
 func NewServer(opts ...ServerOption) *Server {
-	opt := &ServerOptions{}
-	for _, o := range opts {
-		o(opt)
-	}
+	opt := newServerOptions(opts...)
 
 	return &Server{
 		opts: *opt,
