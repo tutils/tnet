@@ -7,16 +7,20 @@ type ServerOptions struct {
 
 type ServerOption func(*ServerOptions)
 
-var DefaultListenAddress = "ws://0.0.0.0:8080/stream"
+var (
+	DefaultListenAddress = "ws://0.0.0.0:8080/stream"
+)
 
 func newServerOptions(opts ...ServerOption) *ServerOptions {
-	opt := &ServerOptions{
-		addr: DefaultListenAddress,
-	}
-
+	opt := &ServerOptions{}
 	for _, o := range opts {
 		o(opt)
 	}
+
+	if opt.addr == "" {
+		opt.addr = DefaultListenAddress
+	}
+
 	return opt
 }
 

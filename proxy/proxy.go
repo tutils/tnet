@@ -1,50 +1,120 @@
 package proxy
 
 import (
-	"bufio"
+	"bytes"
 	"context"
-	"github.com/tutils/tnet/crypt/xor"
+	"github.com/tutils/tnet"
+	"github.com/tutils/tnet/crypt"
 	"github.com/tutils/tnet/tcp"
+	"github.com/tutils/tnet/tun"
 	"io"
+	"log"
 	"net"
 	"sync"
-	"testing"
 )
 
-type connIdKey struct{}
-
-var connId int64 = 0
+var connId_ int64 = 0
 
 func connIdGen() int64 {
-	connId++
-	return connId
+	connId_++
+	return connId_
 }
 
+type proxyConnDataKey struct{}
+
+type proxyConnData struct {
+	connId int64
+	connectResCh chan error
+	writeCh      chan []byte
+	closeCh      chan struct{}
+}
+
+// proxyHandler
 type proxyHandler struct {
-	t       *testing.T
-	s       *tcp.Server
-	tunw    io.Writer
-	connMap *sync.Map
+	tunw         io.Writer  // SyncWriter
+	connMap      *sync.Map
 }
 
-func (h *proxyHandler) ServeTCP(ctx context.Context, conn *tcp.Conn) {
+// called from multiple goroutines
+func (h *proxyHandler) ServeTCP(ctx context.Context, conn tcp.Conn) {
+	log.Println("new proxy connection")
+	defer log.Println("proxy connection closed")
+
 	// new proxy connection
 	connr := conn.Reader()
-	tunw := bufio.NewWriterSize(h.tunw, 5<<10) // TODO: use pool
+	tunw := h.tunw
+	connMap := h.connMap
 
 	// conn_reader -> tun_writer
-	connId := ctx.Value(connIdKey{}).(int64)
-	h.connMap.Store(connId, conn)
+	connData := ctx.Value(proxyConnDataKey{}).(*proxyConnData)
+	connId := connData.connId
+	connMap.Store(connId, connData)
 
-	if err := packHeader(tunw, CmdConnect); err != nil {
+	buftunw := &bytes.Buffer{} // TODO: use pool
+	if err := packHeader(buftunw, CmdConnect); err != nil {
 		return
 	}
-	if err := packBodyConnect(tunw, connId); err != nil {
+	if err := packBodyConnect(buftunw, connId); err != nil {
 		return
 	}
-	if err := tunw.Flush(); err != nil {
+	if _, err := tunw.Write(buftunw.Bytes()); err != nil {
 		return
 	}
+
+	if err := <-connData.connectResCh; err != nil {
+		return
+	}
+
+	done := make(chan struct{})
+	defer func(){
+		connMap.Delete(connId)
+		LOOP:
+		for {
+			// clean writeCh
+			select {
+			case <-connData.writeCh:
+			default:
+				break LOOP
+			}
+		}
+
+		close(done)
+		select {
+		case <-connData.closeCh:
+		default:
+			buftunw.Reset()
+			if err := packHeader(buftunw, CmdClose); err != nil {
+				break
+			}
+			if err := packBodyClose(buftunw, connId); err != nil {
+				break
+			}
+			if _, err := tunw.Write(buftunw.Bytes()); err != nil {
+				break
+			}
+		}
+	}()
+
+	go func() {
+		connw := conn.Writer()
+		for {
+			select {
+			case data, ok := <-connData.writeCh:
+				if !ok {
+					return
+				}
+				if _, err := connw.Write(data); err != nil {
+					return
+				}
+			case <-connData.closeCh:
+				conn.CancelContext()
+				conn.AbortPendingRead()
+				return
+			case <-done:
+				return
+			}
+		}
+	}()
 
 	buf := make([]byte, 4<<10)
 	for {
@@ -52,102 +122,168 @@ func (h *proxyHandler) ServeTCP(ctx context.Context, conn *tcp.Conn) {
 		if err != nil {
 			return
 		}
+
 		select {
-		case <-ctx.Done():
+		case <-connData.closeCh:
 			return // remote peer close
 		default:
 		}
-		if n <= 0 {
-			continue
-		}
-		if err := packHeader(tunw, CmdSend); err != nil {
+
+		buftunw.Reset()
+		if err := packHeader(buftunw, CmdSend); err != nil {
 			return
 		}
-		if err := packBodySend(tunw, connId, buf[:n]); err != nil {
+		if err := packBodySend(buftunw, connId, buf[:n]); err != nil {
 			return
 		}
-		if err := tunw.Flush(); err != nil {
+		if _, err := tunw.Write(buftunw.Bytes()); err != nil {
 			return
 		}
 	}
 }
 
-type tunHandler struct {
-	t       *testing.T
-	connMap sync.Map
+// tunClientHandler
+type tunClientHandler struct {
+	crypt     crypt.Crypt
+	proxyAddr string
+	connectAddr string
 }
 
-var cr = xor.NewCrypt(812734)
+func (h *tunClientHandler) ServeTun(r io.Reader, w io.Writer) {
+	log.Println("new tun connection")
+	defer log.Println("tun connection closed")
 
-func (h *tunHandler) ServeTun(r io.Reader, w io.Writer) {
 	// tcp tunnel has been setup
+	var tunw io.Writer
+	if h.crypt != nil {
+		tunw = h.crypt.NewEncoder(w)
+	} else {
+		tunw = w
+	}
+	tunw = tnet.NewSyncWriter(tunw)
+
+	var connMap sync.Map
+
+	// send config
+	buf := &bytes.Buffer{}  // TODO: use pool
+	if err := packHeader(buf, CmdConfig); err != nil {
+		return
+	}
+	if err := packBodyConfig(buf, h.connectAddr); err != nil {
+		return
+	}
+	if _, err := tunw.Write(buf.Bytes()); err != nil {
+		return
+	}
+
 	tcph := &proxyHandler{
-		t:       h.t,
-		tunw:    cr.NewEncoder(w),
-		connMap: &h.connMap,
+		tunw:         tunw,
+		connMap:      &connMap,
 	}
 
 	s := tcp.NewServer(
-		tcp.WithListenAddress(":56081"),
-		tcp.WithServerHandler(tcp.NewServerHandler(tcph)),
-		tcp.WithConnContextFunc(func(ctx context.Context, c net.Conn) context.Context {
-			return context.WithValue(ctx, connIdKey{}, connIdGen())
+		tcp.WithListenAddress(h.proxyAddr),
+		tcp.WithServerHandler(tcp.NewRawTCPHandler(tcph)),
+		tcp.WithServerConnContextFunc(func(ctx context.Context, c net.Conn) context.Context {
+			data := &proxyConnData{
+				connId: connIdGen(),
+				connectResCh: make(chan error, 1),
+				writeCh:      make(chan []byte, 1<<8),
+				closeCh:      make(chan struct{}),
+			}
+			return context.WithValue(ctx, proxyConnDataKey{}, data)
 		}),
 	)
-	tcph.s = s
-	go s.ListenAndServe()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- s.ListenAndServe()
+	}()
 	defer s.Shutdown(context.Background())
 
 	// tun_reader -> conn_writer
-	tunr := cr.NewDecoder(r)
+	var tunr io.Reader
+	if h.crypt != nil {
+		tunr = h.crypt.NewDecoder(r)
+	} else {
+		tunr = r
+	}
+
 	for {
+		select {
+		case <-errCh:
+			return
+		default:
+		}
+
 		cmd, err := unpackHeader(tunr)
 		if err != nil {
 			return
 		}
 		switch cmd {
-		case CmdSend:
-			f := func(connId int64) io.Writer {
-				v, ok := h.connMap.Load(connId)
-				if !ok {
-					return nil
-				}
-				return v.(*tcp.Conn).Writer()
-			}
-			_, err := unpackBodySend(tunr, f)
+		case CmdConnectResult:
+			connId, connectResult, err := unpackBodyConnectResult(tunr)
 			if err != nil {
 				return
 			}
+			v, ok := connMap.Load(connId)
+			if !ok {
+				return
+			}
+			v.(*proxyConnData).connectResCh <- connectResult
+
+		case CmdSend:
+			connId, data, err := unpackBodySend(tunr)
+			if err != nil {
+				return
+			}
+			v, ok := connMap.Load(connId)
+			if !ok {
+				return
+			}
+			v.(*proxyConnData).writeCh <- data
+
 		case CmdClose:
 			connId, err := unpackBodyClose(tunr)
 			if err != nil {
 				return
 			}
-			v, ok := h.connMap.Load(connId)
+			v, ok := connMap.Load(connId)
 			if !ok {
 				break // ignore
 			}
-			conn := v.(*tcp.Conn)
-			h.connMap.Delete(connId)
-			conn.CancelContext()
-			conn.AbortPendingRead()
+			close(v.(*proxyConnData).closeCh)
 		}
 	}
 }
 
-type Proxy struct {
-	opts   ProxyOptions
-	tcpSrv *tcp.Server
+func NewTunClientHandler() tun.Handler {
+	return &tunClientHandler{}
 }
 
-func (p *Proxy) DialTunnel() error {
-	return nil
+// Proxy
+type Proxy struct {
+	opts ProxyOptions
+}
+
+func (p *Proxy) DialAndServe() error {
+	log.Println("start tun client")
+	defer log.Println("tun client exit")
+	return p.opts.tun.DialAndServe()
 }
 
 func NewProxy(opts ...ProxyOption) *Proxy {
 	opt := newProxyOptions(opts...)
 
-	return &Proxy{
+	p := &Proxy{
 		opts: *opt,
 	}
+
+	if h, ok := p.opts.tun.Handler().(*tunClientHandler); ok {
+		h.crypt = opt.tunCrypt
+		h.proxyAddr = opt.listenAddr
+		h.connectAddr = opt.connectAddr
+	}
+
+	return p
 }

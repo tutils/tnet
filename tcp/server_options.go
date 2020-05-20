@@ -2,27 +2,36 @@ package tcp
 
 import (
 	"context"
-	"log"
 	"net"
 )
 
 type ServerOptions struct {
 	addr    string
-	handler ServerHandler
+	handler ConnHandler
 
-	errorLog    *log.Logger
-	baseContext func(net.Listener) context.Context
-	connContext func(ctx context.Context, c net.Conn) context.Context
+	baseContext  func(net.Listener) context.Context
+	connContext  func(ctx context.Context, c net.Conn) context.Context
+	errorLogFunc func(fmt string, args ...interface{})
 }
 
 type ServerOption func(opts *ServerOptions)
 
 func newServerOptions(opts ...ServerOption) *ServerOptions {
 	opt := &ServerOptions{}
-
 	for _, o := range opts {
 		o(opt)
 	}
+
+	if opt.addr == "" {
+		opt.addr = ":"
+	}
+	if opt.handler == nil {
+		opt.handler = DefaultConnHandler
+	}
+	if opt.errorLogFunc == nil {
+		opt.errorLogFunc = DefaultErrorLogFunc
+	}
+
 	return opt
 }
 
@@ -32,26 +41,26 @@ func WithListenAddress(addr string) ServerOption {
 	}
 }
 
-func WithServerHandler(h ServerHandler) ServerOption {
+func WithServerHandler(h ConnHandler) ServerOption {
 	return func(opts *ServerOptions) {
 		opts.handler = h
 	}
 }
 
-func WithErrorLogger(l *log.Logger) ServerOption {
-	return func(opts *ServerOptions) {
-		opts.errorLog = l
-	}
-}
-
-func WithBaseContextFunc(f func(net.Listener) context.Context) ServerOption {
+func WithServerBaseContextFunc(f func(net.Listener) context.Context) ServerOption {
 	return func(opts *ServerOptions) {
 		opts.baseContext = f
 	}
 }
 
-func WithConnContextFunc(f func(ctx context.Context, c net.Conn) context.Context) ServerOption {
+func WithServerConnContextFunc(f func(ctx context.Context, c net.Conn) context.Context) ServerOption {
 	return func(opts *ServerOptions) {
 		opts.connContext = f
+	}
+}
+
+func WithServerErrorLogFunc(errorLogFunc func(fmt string, args ...interface{})) ServerOption {
+	return func(opts *ServerOptions) {
+		opts.errorLogFunc = errorLogFunc
 	}
 }

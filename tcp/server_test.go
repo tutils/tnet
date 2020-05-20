@@ -13,16 +13,17 @@ type handler struct {
 	t *testing.T
 }
 
-func (h *handler) ServeTCP(ctx context.Context, conn *Conn) {
-	conn.r.setReadLimit(maxInt64)
+func (h *handler) ServeTCP(ctx context.Context, conn Conn) {
+	bufr := conn.BufferReader()
+	bufw := conn.BufferWriter()
 
 	for {
-		ln, _, err := conn.bufr.ReadLine()
+		ln, _, err := bufr.ReadLine()
 		if err != nil {
 			return
 		} else {
-			conn.bufw.WriteString("OK\n")
-			conn.bufw.Flush()
+			bufw.WriteString("OK\n")
+			bufw.Flush()
 			h.t.Logf("%s", string(ln))
 		}
 	}
@@ -30,7 +31,7 @@ func (h *handler) ServeTCP(ctx context.Context, conn *Conn) {
 
 func TestListenAndServe(t *testing.T) {
 	h := &handler{t: t}
-	ch := NewRawTCPServerHandler(h)
+	ch := NewRawTCPHandler(h)
 	server := NewServer(
 		WithListenAddress(":8080"),
 		WithServerHandler(ch),
