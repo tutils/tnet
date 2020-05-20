@@ -28,15 +28,15 @@ func (a *wsAddr) String() string {
 	return a.url.String()
 }
 
-func (a *wsAddr) Host() string {
+func (a *wsAddr) host() string {
 	return a.url.Host
 }
 
-func (a *wsAddr) URI() string {
+func (a *wsAddr) uri() string {
 	return a.url.RequestURI()
 }
 
-func NewWsAddr(rawUrl string) Addr {
+func newWsAddr(rawUrl string) *wsAddr {
 	u, err := url.Parse(rawUrl)
 	if err != nil {
 		return nil
@@ -48,7 +48,7 @@ func NewWsAddr(rawUrl string) Addr {
 }
 
 type wsServer struct {
-	opts *ServerOptions
+	opts ServerOptions
 	srv  *http.Server
 }
 
@@ -121,46 +121,20 @@ func (s *wsServer) ListenAndServe() error {
 }
 
 func NewServer(opts ...ServerOption) Server {
-	opt := &ServerOptions{
-		addr: DefaultListenAddress,
-	}
-	for _, o := range opts {
-		o(opt)
-	}
+	opt := newServerOptions(opts...)
 
 	s := &wsServer{
-		opts: opt,
+		opts: *opt,
 	}
 
-	addr := opt.addr.(*wsAddr)
+	addr := newWsAddr(opt.addr)
 	mux := http.NewServeMux()
-	mux.Handle(addr.URI(), s)
+	mux.Handle(addr.uri(), s)
 	srv := &http.Server{
-		Addr:    addr.Host(),
+		Addr:    addr.host(),
 		Handler: mux,
 	}
 	s.srv = srv
 
 	return s
-}
-
-var DefaultListenAddress = NewWsAddr("ws://0.0.0.0:8080/stream")
-
-type ServerOptions struct {
-	addr    Addr
-	handler Handler
-}
-
-type ServerOption func(*ServerOptions)
-
-func WithListenAddress(addr Addr) ServerOption {
-	return func(opts *ServerOptions) {
-		opts.addr = addr
-	}
-}
-
-func WithServerHandler(h Handler) ServerOption {
-	return func(opts *ServerOptions) {
-		opts.handler = h
-	}
 }

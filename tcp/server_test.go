@@ -13,7 +13,7 @@ type handler struct {
 	t *testing.T
 }
 
-func (h *handler) ServeTCP(ctx context.Context, conn *conn) {
+func (h *handler) ServeTCP(ctx context.Context, conn *Conn) {
 	conn.r.setReadLimit(maxInt64)
 
 	for {
@@ -30,8 +30,11 @@ func (h *handler) ServeTCP(ctx context.Context, conn *conn) {
 
 func TestListenAndServe(t *testing.T) {
 	h := &handler{t: t}
-	ch := NewRawTCPConnectionHandler(h)
-	server := &Server{Addr: ":8080", Handler: ch}
+	ch := NewRawTCPServerHandler(h)
+	server := NewServer(
+		WithListenAddress(":8080"),
+		WithServerHandler(ch),
+	)
 	go server.ListenAndServe()
 	time.Sleep(time.Second * 5)
 	t.Logf("shutdown ... %#v", server.activeConn)

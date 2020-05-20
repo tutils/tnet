@@ -45,7 +45,7 @@ func (c ConnState) String() string {
 	return stateName[c]
 }
 
-type conn struct {
+type Conn struct {
 	server    *Server
 	rwc       net.Conn
 	cancelCtx context.CancelFunc
@@ -63,7 +63,7 @@ type conn struct {
 
 var ErrAbortHandler = errors.New("tnet/tcpserver: abort Handler")
 
-func (c *conn) setState(state ConnState) {
+func (c *Conn) setState(state ConnState) {
 	s := c.server
 	switch state {
 	case StateNew:
@@ -78,12 +78,12 @@ func (c *conn) setState(state ConnState) {
 	atomic.StoreUint64(&c.curState.atomic, packedState)
 }
 
-func (c *conn) getState() (state ConnState, unixSec int64) {
+func (c *Conn) getState() (state ConnState, unixSec int64) {
 	packedState := atomic.LoadUint64(&c.curState.atomic)
 	return ConnState(packedState & 0xff), int64(packedState >> 8)
 }
 
-func (c *conn) finalFlush() {
+func (c *Conn) finalFlush() {
 	if c.bufr != nil {
 		// Steal the bufio.Reader (~4KB worth of memory) and its associated
 		// reader for a future connection.
@@ -101,30 +101,46 @@ func (c *conn) finalFlush() {
 }
 
 // Close the connection.
-func (c *conn) close() {
+func (c *Conn) close() {
 	c.finalFlush()
 	c.rwc.Close()
 }
 
-func (c *conn) BufferReader() *bufio.Reader {
+func (c *Conn) BufferReader() *bufio.Reader {
 	return c.bufr
 }
 
-func (c *conn) BufferWriter() *bufio.Writer {
+func (c *Conn) BufferWriter() *bufio.Writer {
 	return c.bufw
+}
+
+func (c *Conn) SetReadLimit(remain int64) {
+	c.r.setReadLimit(remain)
+}
+
+func (c *Conn) SetInfiniteReadLimit() {
+	c.r.setInfiniteReadLimit()
+}
+
+func (c *Conn) Reader() io.Reader {
+	return c.r
+}
+
+func (c *Conn) Writer() io.Writer {
+	return c.rwc
 }
 
 const maxInt64 = 1<<63 - 1
 
 var aLongTimeAgo = time.Unix(1, 0)
 
-// connReader is the io.Reader wrapper used by *conn. It combines a
+// connReader is the io.Reader wrapper used by *Conn. It combines a
 // selectively-activated io.LimitedReader (to bound request header
 // read sizes) with support for selectively keeping an io.Reader.Read
 // call blocked in a background goroutine to wait for activity and
 // trigger a CloseNotifier channel.
 type connReader struct {
-	conn *conn
+	conn *Conn
 
 	mu      sync.Mutex // guards following
 	hasByte bool
@@ -290,26 +306,21 @@ func (b *atomicBool) setTrue()    { atomic.StoreInt32((*int32)(b), 1) }
 type disconnectHandler struct {
 }
 
-func (h *disconnectHandler) Serve(ctx context.Context, conn *conn) {
+func (h *disconnectHandler) Serve(ctx context.Context, conn *Conn) {
 }
 
-var defaultConnectionHandler disconnectHandler
+var defaultServerHandler disconnectHandler
 
-type ConnectionHandler interface {
-	Serve(ctx context.Context, conn *conn)
+type ServerHandler interface {
+	Serve(ctx context.Context, conn *Conn)
 }
 
 type Server struct {
-	Addr    string
-	Handler ConnectionHandler
+	opts ServerOptions
 
 	mu         sync.Mutex
 	listeners  map[*net.Listener]struct{}
-	activeConn map[*conn]struct{}
-
-	ErrorLog    *log.Logger
-	BaseContext func(net.Listener) context.Context
-	ConnContext func(ctx context.Context, c net.Conn) context.Context
+	activeConn map[*Conn]struct{}
 
 	inShutdown atomicBool // true when when server is in shutdown
 	onShutdown []func()
@@ -322,7 +333,7 @@ func (s *Server) ListenAndServe() error {
 	if s.shuttingDown() {
 		return ErrServerClosed
 	}
-	addr := s.Addr
+	addr := s.opts.addr
 	if addr == "" {
 		addr = ":"
 	}
@@ -459,8 +470,8 @@ func (s *Server) Serve(l net.Listener) error {
 	defer s.trackListener(&l, false)
 
 	baseCtx := context.Background()
-	if s.BaseContext != nil {
-		baseCtx = s.BaseContext(origListener)
+	if s.opts.baseContext != nil {
+		baseCtx = s.opts.baseContext(origListener)
 		if baseCtx == nil {
 			panic("BaseContext returned a nil context")
 		}
@@ -493,7 +504,7 @@ func (s *Server) Serve(l net.Listener) error {
 			return err
 		}
 		connCtx := ctx
-		if cc := s.ConnContext; cc != nil {
+		if cc := s.opts.connContext; cc != nil {
 			connCtx = cc(connCtx, rw)
 			if connCtx == nil {
 				panic("ConnContext returned nil")
@@ -524,11 +535,11 @@ func (s *Server) trackListener(ln *net.Listener, add bool) bool {
 	return true
 }
 
-func (s *Server) trackConn(c *conn, add bool) {
+func (s *Server) trackConn(c *Conn, add bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.activeConn == nil {
-		s.activeConn = make(map[*conn]struct{})
+		s.activeConn = make(map[*Conn]struct{})
 	}
 	if add {
 		s.activeConn[c] = struct{}{}
@@ -538,8 +549,8 @@ func (s *Server) trackConn(c *conn, add bool) {
 }
 
 func (s *Server) logf(format string, args ...interface{}) {
-	if s.ErrorLog != nil {
-		s.ErrorLog.Printf(format, args...)
+	if s.opts.errorLog != nil {
+		s.opts.errorLog.Printf(format, args...)
 	} else {
 		log.Printf(format, args...)
 	}
@@ -547,8 +558,8 @@ func (s *Server) logf(format string, args ...interface{}) {
 
 const debugServerConnections = false
 
-func (s *Server) newConn(rwc net.Conn) *conn {
-	c := &conn{
+func (s *Server) newConn(rwc net.Conn) *Conn {
+	c := &Conn{
 		server: s,
 		rwc:    rwc,
 	}
@@ -558,7 +569,7 @@ func (s *Server) newConn(rwc net.Conn) *conn {
 	return c
 }
 
-func (s *Server) connServe(ctx context.Context, conn *conn) {
+func (s *Server) connServe(ctx context.Context, conn *Conn) {
 	defer func() {
 		if err := recover(); err != nil && err != ErrAbortHandler {
 			const size = 64 << 10
@@ -575,11 +586,12 @@ func (s *Server) connServe(ctx context.Context, conn *conn) {
 	defer cancelCtx()
 
 	conn.r = &connReader{conn: conn}
+	conn.r.setInfiniteReadLimit()
 	conn.bufr = newBufioReader(conn.r)
 	conn.bufw = newBufioWriterSize(checkConnErrorWriter{conn}, 4<<10)
-	h := s.Handler
+	h := s.opts.handler
 	if h == nil {
-		h = &defaultConnectionHandler
+		h = &defaultServerHandler
 	}
 	h.Serve(ctx, conn)
 }
@@ -684,7 +696,7 @@ func putBufioWriter(bw *bufio.Writer) {
 }
 
 type checkConnErrorWriter struct {
-	c *conn
+	c *Conn
 }
 
 func (w checkConnErrorWriter) Write(p []byte) (n int, err error) {
@@ -696,11 +708,13 @@ func (w checkConnErrorWriter) Write(p []byte) (n int, err error) {
 	return
 }
 
-func NewServer() *Server {
-	return &Server{}
-}
+func NewServer(opts ...ServerOption) *Server {
+	opt := &ServerOptions{}
+	for _, o := range opts {
+		o(opt)
+	}
 
-func ListenAndServe(addr string, handler ConnectionHandler) error {
-	server := &Server{Addr: addr, Handler: handler}
-	return server.ListenAndServe()
+	return &Server{
+		opts: *opt,
+	}
 }
