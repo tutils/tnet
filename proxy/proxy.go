@@ -212,7 +212,7 @@ func (h *tunClientHandler) ServeTun(ctx context.Context, r io.Reader, w io.Write
 		connMap: &connMap,
 	}
 
-	var connID int64 = 0
+	var connID int64
 
 	s := tcp.NewServer(
 		tcp.WithListenAddress(h.proxyAddr),

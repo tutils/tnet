@@ -1,6 +1,7 @@
 package tun
 
 import (
+	"context"
 	"io"
 	"testing"
 )

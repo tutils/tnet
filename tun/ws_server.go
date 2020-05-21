@@ -128,7 +128,7 @@ func newWsServer(opts ...ServerOption) Server {
 	addr := newWsAddr(opt.addr)
 	mux := http.NewServeMux()
 	mux.HandleFunc(addr.uri(), s.serveHTTP)
-	var connID int64 = 0
+	var connID int64
 	srv := &http.Server{
 		Addr:    addr.host(),
 		Handler: mux,
