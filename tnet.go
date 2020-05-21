@@ -6,7 +6,7 @@ import (
 )
 
 type SyncReader struct {
-	r io.Reader
+	r  io.Reader
 	mu sync.Mutex
 }
 
@@ -21,7 +21,7 @@ func NewSyncReader(r io.Reader) io.Reader {
 }
 
 type SyncWriter struct {
-	w io.Writer
+	w  io.Writer
 	mu sync.Mutex
 }
 

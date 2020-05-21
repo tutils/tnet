@@ -15,15 +15,15 @@ import (
 type endpointConnDataKey struct{}
 
 type endpointConnData struct {
-	connId int64
-	writeCh      chan []byte
+	connId  int64
+	writeCh chan []byte
 	closeCh chan struct{}
 }
 
 // endpointHandler
 type endpointHandler struct {
-	tunw io.Writer  // SyncWriter
-	connMap      *sync.Map
+	tunw    io.Writer // SyncWriter
+	connMap *sync.Map
 }
 
 func (e *endpointHandler) ServeConn(ctx context.Context, conn tcp.Conn) {
@@ -38,19 +38,22 @@ func (e *endpointHandler) ServeConn(ctx context.Context, conn tcp.Conn) {
 	connId := connData.connId
 	connMap.Store(connId, connData)
 
-	buftunw := &bytes.Buffer{}  // TODO: use pool
+	buftunw := &bytes.Buffer{} // TODO: use pool
 	if err := packHeader(buftunw, CmdConnectResult); err != nil {
+		log.Println("packHeader err", err)
 		return
 	}
 	if err := packBodyConnectResult(buftunw, connId, nil); err != nil {
+		log.Println("packBodyConnectResult err", err)
 		return
 	}
 	if _, err := tunw.Write(buftunw.Bytes()); err != nil {
+		log.Println("write tun err", err)
 		return
 	}
 
 	done := make(chan struct{})
-	defer func(){
+	defer func() {
 		connMap.Delete(connId)
 	LOOP:
 		for {
@@ -68,12 +71,15 @@ func (e *endpointHandler) ServeConn(ctx context.Context, conn tcp.Conn) {
 		default:
 			buftunw.Reset()
 			if err := packHeader(buftunw, CmdClose); err != nil {
+				log.Println("packHeader err", err)
 				break
 			}
 			if err := packBodyClose(buftunw, connId); err != nil {
+				log.Println("packBodyClose err", err)
 				break
 			}
 			if _, err := tunw.Write(buftunw.Bytes()); err != nil {
+				log.Println("write tun err", err)
 				break
 			}
 		}
@@ -88,6 +94,7 @@ func (e *endpointHandler) ServeConn(ctx context.Context, conn tcp.Conn) {
 					return
 				}
 				if _, err := connw.Write(data); err != nil {
+					log.Println("write conn err", err)
 					return
 				}
 			case <-connData.closeCh:
@@ -104,6 +111,7 @@ func (e *endpointHandler) ServeConn(ctx context.Context, conn tcp.Conn) {
 	for {
 		n, err := connr.Read(buf)
 		if err != nil {
+			log.Println("read conn err", err)
 			return
 		}
 
@@ -115,12 +123,15 @@ func (e *endpointHandler) ServeConn(ctx context.Context, conn tcp.Conn) {
 
 		buftunw.Reset()
 		if err := packHeader(buftunw, CmdSend); err != nil {
+			log.Println("packHeader err", err)
 			return
 		}
 		if err := packBodySend(buftunw, connId, buf[:n]); err != nil {
+			log.Println("packBodySend err", err)
 			return
 		}
 		if _, err := tunw.Write(buftunw.Bytes()); err != nil {
+			log.Println("write tun err", err)
 			return
 		}
 	}
@@ -146,13 +157,16 @@ func (h *tunServerHandler) ServeTun(r io.Reader, w io.Writer) {
 	// recv config
 	cmd, err := unpackHeader(tunr)
 	if err != nil {
+		log.Println("unpackHeader err", err)
 		return
 	}
 	if cmd != CmdConfig {
+		log.Println("cmd err")
 		return
 	}
 	connectAddr, err := unpackBodyConfig(tunr)
 	if err != nil {
+		log.Println("unpackBodyConfig err", err)
 		return
 	}
 
@@ -167,7 +181,7 @@ func (h *tunServerHandler) ServeTun(r io.Reader, w io.Writer) {
 	var connMap sync.Map
 
 	tcph := &endpointHandler{
-		tunw: tunw,
+		tunw:    tunw,
 		connMap: &connMap,
 	}
 
@@ -180,31 +194,36 @@ func (h *tunServerHandler) ServeTun(r io.Reader, w io.Writer) {
 	for {
 		cmd, err := unpackHeader(tunr)
 		if err != nil {
+			log.Println("unpackHeader err", err)
 			return
 		}
 		switch cmd {
 		case CmdConnect:
 			connId, err := unpackBodyConnect(tunr)
 			if err != nil {
+				log.Println("unpackBodyConnect err", err)
 				return
 			}
 			ctx := context.Background()
 			data := &endpointConnData{
-				connId: connId,
-				writeCh:      make(chan []byte, 1<<8),
-				closeCh:      make(chan struct{}),
+				connId:  connId,
+				writeCh: make(chan []byte, 1<<8),
+				closeCh: make(chan struct{}),
 			}
 			ctx = context.WithValue(ctx, endpointConnDataKey{}, data)
 			go func() {
 				if err := c.DialAndServe(ctx); err != nil {
-					buftunw := &bytes.Buffer{}  // TODO: use pool
+					buftunw := &bytes.Buffer{} // TODO: use pool
 					if err := packHeader(buftunw, CmdConnectResult); err != nil {
+						log.Println("packHeader err", err)
 						return
 					}
 					if err := packBodyConnectResult(buftunw, connId, err); err != nil {
+						log.Println("packBodyConnectResult err", err)
 						return
 					}
 					if _, err := tunw.Write(buftunw.Bytes()); err != nil {
+						log.Println("write tun err", err)
 						return
 					}
 				}
@@ -212,20 +231,24 @@ func (h *tunServerHandler) ServeTun(r io.Reader, w io.Writer) {
 		case CmdSend:
 			connId, data, err := unpackBodySend(tunr)
 			if err != nil {
+				log.Println("unpackBodySend err", err)
 				return
 			}
 			v, ok := connMap.Load(connId)
 			if !ok {
-				return
+				log.Println("connId not found")
+				break  // ignore
 			}
 			v.(*endpointConnData).writeCh <- data
 		case CmdClose:
 			connId, err := unpackBodyClose(tunr)
 			if err != nil {
+				log.Println("unpackBodyClose err", err)
 				return
 			}
 			v, ok := connMap.Load(connId)
 			if !ok {
+				log.Println("connId not found")
 				break  // ignore
 			}
 			close(v.(*endpointConnData).closeCh)

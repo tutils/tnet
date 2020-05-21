@@ -23,7 +23,7 @@ func connIdGen() int64 {
 type proxyConnDataKey struct{}
 
 type proxyConnData struct {
-	connId int64
+	connId       int64
 	connectResCh chan error
 	writeCh      chan []byte
 	closeCh      chan struct{}
@@ -31,8 +31,8 @@ type proxyConnData struct {
 
 // proxyHandler
 type proxyHandler struct {
-	tunw         io.Writer  // SyncWriter
-	connMap      *sync.Map
+	tunw    io.Writer // SyncWriter
+	connMap *sync.Map
 }
 
 // called from multiple goroutines
@@ -66,9 +66,9 @@ func (h *proxyHandler) ServeTCP(ctx context.Context, conn tcp.Conn) {
 	}
 
 	done := make(chan struct{})
-	defer func(){
+	defer func() {
 		connMap.Delete(connId)
-		LOOP:
+	LOOP:
 		for {
 			// clean writeCh
 			select {
@@ -144,8 +144,8 @@ func (h *proxyHandler) ServeTCP(ctx context.Context, conn tcp.Conn) {
 
 // tunClientHandler
 type tunClientHandler struct {
-	crypt     crypt.Crypt
-	proxyAddr string
+	crypt       crypt.Crypt
+	proxyAddr   string
 	connectAddr string
 }
 
@@ -165,20 +165,23 @@ func (h *tunClientHandler) ServeTun(r io.Reader, w io.Writer) {
 	var connMap sync.Map
 
 	// send config
-	buf := &bytes.Buffer{}  // TODO: use pool
+	buf := &bytes.Buffer{} // TODO: use pool
 	if err := packHeader(buf, CmdConfig); err != nil {
+		log.Println("packHeader err", err)
 		return
 	}
 	if err := packBodyConfig(buf, h.connectAddr); err != nil {
+		log.Println("packBodyConfig err", err)
 		return
 	}
 	if _, err := tunw.Write(buf.Bytes()); err != nil {
+		log.Println("write tun err", err)
 		return
 	}
 
 	tcph := &proxyHandler{
-		tunw:         tunw,
-		connMap:      &connMap,
+		tunw:    tunw,
+		connMap: &connMap,
 	}
 
 	s := tcp.NewServer(
@@ -186,7 +189,7 @@ func (h *tunClientHandler) ServeTun(r io.Reader, w io.Writer) {
 		tcp.WithServerHandler(tcp.NewRawTCPHandler(tcph)),
 		tcp.WithServerConnContextFunc(func(ctx context.Context, c net.Conn) context.Context {
 			data := &proxyConnData{
-				connId: connIdGen(),
+				connId:       connIdGen(),
 				connectResCh: make(chan error, 1),
 				writeCh:      make(chan []byte, 1<<8),
 				closeCh:      make(chan struct{}),
@@ -218,38 +221,45 @@ func (h *tunClientHandler) ServeTun(r io.Reader, w io.Writer) {
 
 		cmd, err := unpackHeader(tunr)
 		if err != nil {
+			log.Println("unpackHeader err", err)
 			return
 		}
 		switch cmd {
 		case CmdConnectResult:
 			connId, connectResult, err := unpackBodyConnectResult(tunr)
 			if err != nil {
+				log.Println("unpackBodyConnectResult err", err)
 				return
 			}
 			v, ok := connMap.Load(connId)
 			if !ok {
-				return
+				log.Println("connId not found")
+				break // ignore
 			}
 			v.(*proxyConnData).connectResCh <- connectResult
 
 		case CmdSend:
 			connId, data, err := unpackBodySend(tunr)
 			if err != nil {
+				log.Println("unpackBodySend err", err)
 				return
 			}
 			v, ok := connMap.Load(connId)
 			if !ok {
-				return
+				log.Println("connId not found")
+				break // ignore
 			}
 			v.(*proxyConnData).writeCh <- data
 
 		case CmdClose:
 			connId, err := unpackBodyClose(tunr)
 			if err != nil {
+				log.Println("unpackBodyClose err", err)
 				return
 			}
 			v, ok := connMap.Load(connId)
 			if !ok {
+				log.Println("connId not found")
 				break // ignore
 			}
 			close(v.(*proxyConnData).closeCh)
