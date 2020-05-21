@@ -8,7 +8,10 @@ import (
 	"time"
 )
 
-var ClientContextKey = &contextKey{"tcp-client"}
+// connext keys
+var (
+	ClientContextKey = &contextKey{"tcp-client"}
+)
 
 type cliConn struct {
 	conn
@@ -35,6 +38,7 @@ func (oc *onceCancelDialer) Cancel() {
 	oc.once.Do(oc.cancel)
 }
 
+// tcp client
 type Client struct {
 	opts ClientOptions
 

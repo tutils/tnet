@@ -14,12 +14,15 @@ import (
 	"time"
 )
 
+// context keys
 var (
 	LocalAddrContextKey = &contextKey{"local-addr"}
 )
 
+// connection state
 type ConnState int
 
+// connection state values
 const (
 	StateNew ConnState = iota
 	StateActive
@@ -44,8 +47,10 @@ type disconnectHandler struct {
 func (h *disconnectHandler) ServeConn(ctx context.Context, conn Conn) {
 }
 
+// default connection handler
 var DefaultConnHandler = &disconnectHandler{}
 
+// connection handler
 type ConnHandler interface {
 	ServeConn(ctx context.Context, conn Conn)
 }
@@ -317,6 +322,7 @@ func (cr *connReader) Read(p []byte) (n int, err error) {
 	return n, err
 }
 
+// tcp connection
 type Conn interface {
 	Reader() io.Reader
 	Writer() io.Writer

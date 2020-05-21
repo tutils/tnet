@@ -1,6 +1,15 @@
-# tnet
+# TNet
 
-插件化架构的网络开发工具包
+[![License][1]][2]
+[![Go Report Card][3]][4]
+
+[1]: https://img.shields.io/:license-apache-blue.svg
+[2]: https://opensource.org/licenses/Apache-2.0
+[3]: https://goreportcard.com/badge/tutils/tnet
+[4]: https://goreportcard.com/report/github.com/tutils/tnet
+
+
+插件化架构的网络开发工具包。
 
 ## 特性
 
@@ -15,7 +24,7 @@
 
 基于插件化的架构设计，所以主要结构在创建的时候各种选项都是可定制的。
 
-- **样例一** - 创建一个TCP服务器
+- **样例一** - 创建一个TCP服务器：
 
 ```go
 package main
@@ -66,7 +75,7 @@ func main() {
 }
 ```
 
-- **样例二** - 创建一个本地代理
+- **样例二** - 创建一个本地代理：
 
 ```go
 package main
@@ -131,7 +140,7 @@ p := proxy.NewProxy(
 ```
 ## 命令行界面
 
-详见 ```tnet --help```
+详见 ```tnet --help```。
 
 ## 协议
 

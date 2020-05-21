@@ -237,7 +237,7 @@ func (h *tunServerHandler) ServeTun(r io.Reader, w io.Writer) {
 			v, ok := connMap.Load(connId)
 			if !ok {
 				log.Println("connId not found")
-				break  // ignore
+				break // ignore
 			}
 			v.(*endpointConnData).writeCh <- data
 		case CmdClose:
@@ -249,13 +249,14 @@ func (h *tunServerHandler) ServeTun(r io.Reader, w io.Writer) {
 			v, ok := connMap.Load(connId)
 			if !ok {
 				log.Println("connId not found")
-				break  // ignore
+				break // ignore
 			}
 			close(v.(*endpointConnData).closeCh)
 		}
 	}
 }
 
+// tunnel handler for endpoint
 func NewTunServerHandler() tun.Handler {
 	return &tunServerHandler{}
 }

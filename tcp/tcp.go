@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// default tcp options
 var (
 	DefaultErrorLogFunc = log.Printf
 )

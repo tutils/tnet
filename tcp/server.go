@@ -46,6 +46,7 @@ func (oc *onceCloseListener) Close() error {
 
 func (oc *onceCloseListener) close() { oc.closeErr = oc.Listener.Close() }
 
+// tcp server
 type Server struct {
 	opts ServerOptions
 
@@ -58,6 +59,7 @@ type Server struct {
 	doneChan   chan struct{}
 }
 
+// server closed error
 var ErrServerClosed = errors.New("tnet/tcp: Server closed")
 
 func (srv *Server) ListenAndServe() error {

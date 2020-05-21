@@ -6,8 +6,10 @@ import (
 	"io"
 )
 
+// command code of tunnel packet
 type Cmd int8
 
+// command values
 const (
 	CmdConfig Cmd = iota
 	CmdConnect

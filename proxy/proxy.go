@@ -186,7 +186,7 @@ func (h *tunClientHandler) ServeTun(r io.Reader, w io.Writer) {
 
 	s := tcp.NewServer(
 		tcp.WithListenAddress(h.proxyAddr),
-		tcp.WithServerHandler(tcp.NewRawTCPHandler(tcph)),
+		tcp.WithServerHandler(tcp.NewRawTCPConnHandler(tcph)),
 		tcp.WithServerConnContextFunc(func(ctx context.Context, c net.Conn) context.Context {
 			data := &proxyConnData{
 				connId:       connIdGen(),
@@ -267,6 +267,7 @@ func (h *tunClientHandler) ServeTun(r io.Reader, w io.Writer) {
 	}
 }
 
+// tunnel handler for proxy
 func NewTunClientHandler() tun.Handler {
 	return &tunClientHandler{}
 }

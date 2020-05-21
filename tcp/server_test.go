@@ -31,7 +31,7 @@ func (h *handler) ServeTCP(ctx context.Context, conn Conn) {
 
 func TestListenAndServe(t *testing.T) {
 	h := &handler{t: t}
-	ch := NewRawTCPHandler(h)
+	ch := NewRawTCPConnHandler(h)
 	server := NewServer(
 		WithListenAddress(":8080"),
 		WithServerHandler(ch),

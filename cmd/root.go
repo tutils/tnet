@@ -32,8 +32,10 @@ var (
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "tnet",
-	Short: "Network utils",
-	Long: `Start proxy or endpoint to setup a TCP tunnel, For example:
+	Short: "Network utils.",
+	Long: `Network utils.
+Repo: https://github.com/tutils/tnet
+Start proxy or endpoint to setup a TCP tunnel, For example:
   tnet proxy --listen=0.0.0.0:56080 --connect=127.0.0.1:3128 --tunnel-connect=ws://123.45.67.89:8080/stream --crypt-key=816559
   tnet endpoint --tunnel-listen=ws://0.0.0.0:8080/stream --crypt-key=816559`,
 	// Uncomment the following line if your bare application

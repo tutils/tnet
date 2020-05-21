@@ -5,6 +5,7 @@ import (
 	"net"
 )
 
+// tcp client options
 type ClientOptions struct {
 	addr    string
 	handler ConnHandler
@@ -13,6 +14,7 @@ type ClientOptions struct {
 	errorLogFunc func(fmt string, args ...interface{})
 }
 
+// tcp client option
 type ClientOption func(opts *ClientOptions)
 
 func newClientOptions(opts ...ClientOption) *ClientOptions {
@@ -31,18 +33,21 @@ func newClientOptions(opts ...ClientOption) *ClientOptions {
 	return opt
 }
 
+// connect address opt
 func WithConnectAddress(addr string) ClientOption {
 	return func(opts *ClientOptions) {
 		opts.addr = addr
 	}
 }
 
+// client handler opt
 func WithClientHandler(h ConnHandler) ClientOption {
 	return func(opts *ClientOptions) {
 		opts.handler = h
 	}
 }
 
+// connection context hook function
 func WithClientConnContextFunc(f func(ctx context.Context, c net.Conn) context.Context) ClientOption {
 	return func(opts *ClientOptions) {
 		opts.connContext = f
