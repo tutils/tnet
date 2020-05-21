@@ -9,6 +9,6 @@ import (
 
 func main() {
 	go http.ListenAndServe(":", nil)
-	log.SetFlags(log.Lshortfile)
+	log.SetFlags(log.Ltime | log.Lshortfile)
 	cmd.Execute()
 }

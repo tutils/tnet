@@ -19,7 +19,7 @@ var (
 	LocalAddrContextKey = &contextKey{"local-addr"}
 )
 
-// connection state
+// ConnState is connection state
 type ConnState int
 
 // connection state values
@@ -47,10 +47,10 @@ type disconnectHandler struct {
 func (h *disconnectHandler) ServeConn(ctx context.Context, conn Conn) {
 }
 
-// default connection handler
+// DefaultConnHandler is default connection handler
 var DefaultConnHandler = &disconnectHandler{}
 
-// connection handler
+// ConnHandler is connection handler
 type ConnHandler interface {
 	ServeConn(ctx context.Context, conn Conn)
 }
@@ -322,7 +322,7 @@ func (cr *connReader) Read(p []byte) (n int, err error) {
 	return n, err
 }
 
-// tcp connection
+// Conn is tcp connection
 type Conn interface {
 	Reader() io.Reader
 	Writer() io.Writer
@@ -366,6 +366,7 @@ func (c *conn) getState() (state ConnState, unixSec int64) {
 	return ConnState(packedState & 0xff), int64(packedState >> 8)
 }
 
+// ErrAbortHandler means abort handler error
 var ErrAbortHandler = errors.New("tnet/tcp: abort Handler")
 
 func (c *conn) serve(ctx context.Context, handler ConnHandler, errorLogFunc func(fmt string, args ...interface{})) {

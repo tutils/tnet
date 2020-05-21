@@ -9,7 +9,7 @@ type shandler struct {
 	t *testing.T
 }
 
-func (h *shandler) ServeTun(r io.Reader, w io.Writer) {
+func (h *shandler) ServeTun(ctx context.Context, r io.Reader, w io.Writer) {
 	buf := make([]byte, 1<<10)
 	for {
 		_, err := r.Read(buf)

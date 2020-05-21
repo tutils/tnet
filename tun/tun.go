@@ -1,13 +1,16 @@
 package tun
 
-import "io"
+import (
+	"context"
+	"io"
+)
 
-// tunnel address
+// Addr is tunnel address
 type Addr interface {
 	String() string
 }
 
-// tunnel handler
+// Handler is tunnel handler
 type Handler interface {
-	ServeTun(r io.Reader, w io.Writer)
+	ServeTun(ctx context.Context, r io.Reader, w io.Writer)
 }

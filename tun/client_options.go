@@ -1,12 +1,12 @@
 package tun
 
-// client options
+// ClientOptions is client options
 type ClientOptions struct {
 	addr    string
 	handler Handler
 }
 
-// client option
+// ClientOption is option setter for client
 type ClientOption func(*ClientOptions)
 
 // default client options
@@ -27,14 +27,14 @@ func newClientOptions(opts ...ClientOption) *ClientOptions {
 	return opt
 }
 
-// client connect address opt
+// WithConnectAddress sets client connect address opt
 func WithConnectAddress(addr string) ClientOption {
 	return func(opts *ClientOptions) {
 		opts.addr = addr
 	}
 }
 
-// tunnel handler opt
+// WithClientHandler sets tunnel handler opt
 func WithClientHandler(h Handler) ClientOption {
 	return func(opts *ClientOptions) {
 		opts.handler = h

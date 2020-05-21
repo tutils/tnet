@@ -1,12 +1,12 @@
 package tun
 
-// server options
+// ServerOptions is server options
 type ServerOptions struct {
 	addr    string
 	handler Handler
 }
 
-// server option
+// ServerOption is option setter for server
 type ServerOption func(*ServerOptions)
 
 // default server options
@@ -27,14 +27,14 @@ func newServerOptions(opts ...ServerOption) *ServerOptions {
 	return opt
 }
 
-// server listen address opt
+// WithListenAddress sets server listen address opt
 func WithListenAddress(addr string) ServerOption {
 	return func(opts *ServerOptions) {
 		opts.addr = addr
 	}
 }
 
-// tunnel handler opt
+// WithServerHandler sets tunnel handler opt
 func WithServerHandler(h Handler) ServerOption {
 	return func(opts *ServerOptions) {
 		opts.handler = h

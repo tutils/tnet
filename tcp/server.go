@@ -14,6 +14,7 @@ type contextKey struct {
 
 func (k *contextKey) String() string { return "tnet/tcp context value " + k.name }
 
+// context keys
 var (
 	ServerContextKey = &contextKey{"tcp-server"}
 )
@@ -46,7 +47,7 @@ func (oc *onceCloseListener) Close() error {
 
 func (oc *onceCloseListener) close() { oc.closeErr = oc.Listener.Close() }
 
-// tcp server
+// Server over tcp
 type Server struct {
 	opts ServerOptions
 
@@ -59,9 +60,10 @@ type Server struct {
 	doneChan   chan struct{}
 }
 
-// server closed error
+// ErrServerClosed means server has been closed
 var ErrServerClosed = errors.New("tnet/tcp: Server closed")
 
+// ListenAndServe starts tcp server
 func (srv *Server) ListenAndServe() error {
 	if srv.shuttingDown() {
 		return ErrServerClosed
@@ -136,12 +138,14 @@ func (srv *Server) shuttingDown() bool {
 	return srv.inShutdown.isSet()
 }
 
+// RegisterOnShutdown registers OnShutdown functions
 func (srv *Server) RegisterOnShutdown(f func()) {
 	srv.mu.Lock()
 	srv.onShutdown = append(srv.onShutdown, f)
 	srv.mu.Unlock()
 }
 
+// Close close all connections of server
 func (srv *Server) Close() error {
 	srv.inShutdown.setTrue()
 	srv.mu.Lock()
@@ -155,6 +159,7 @@ func (srv *Server) Close() error {
 	return err
 }
 
+// Shutdown shutdowns client graceful
 func (srv *Server) Shutdown(ctx context.Context) error {
 	srv.inShutdown.setTrue()
 
@@ -289,6 +294,7 @@ func (srv *Server) newConn(rwc net.Conn) *srvConn {
 	return c
 }
 
+// NewServer create a new tcp server
 func NewServer(opts ...ServerOption) *Server {
 	opt := newServerOptions(opts...)
 

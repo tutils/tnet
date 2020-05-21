@@ -24,6 +24,7 @@ func (c *xorCrypt) NewDecoder(r io.Reader) io.Reader {
 	}
 }
 
+// NewCrypt create a new Crypt
 func NewCrypt(seed int64) crypt.Crypt {
 	return &xorCrypt{
 		seed: seed,

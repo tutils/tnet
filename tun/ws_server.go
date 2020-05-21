@@ -2,8 +2,10 @@ package tun
 
 import (
 	"bytes"
+	"context"
 	"github.com/gorilla/websocket"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 )
@@ -24,8 +26,8 @@ func (a *wsAddr) uri() string {
 	return a.url.RequestURI()
 }
 
-func newWsAddr(rawUrl string) *wsAddr {
-	u, err := url.Parse(rawUrl)
+func newWsAddr(rawURL string) *wsAddr {
+	u, err := url.Parse(rawURL)
 	if err != nil {
 		return nil
 	}
@@ -104,13 +106,17 @@ func (s *wsServer) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	if h := s.opts.handler; h != nil {
 		wsr := newWsReader(conn)
 		wsw := newWsWriter(conn)
-		h.ServeTun(wsr, wsw)
+		ctx := r.Context()
+		h.ServeTun(ctx, wsr, wsw)
 	}
 }
 
 func (s *wsServer) ListenAndServe() error {
 	return s.srv.ListenAndServe()
 }
+
+// ConnIDContextKey is context key of connID
+type ConnIDContextKey struct{}
 
 func newWsServer(opts ...ServerOption) Server {
 	opt := newServerOptions(opts...)
@@ -122,9 +128,13 @@ func newWsServer(opts ...ServerOption) Server {
 	addr := newWsAddr(opt.addr)
 	mux := http.NewServeMux()
 	mux.HandleFunc(addr.uri(), s.serveHTTP)
+	var connID int64 = 0
 	srv := &http.Server{
 		Addr:    addr.host(),
 		Handler: mux,
+		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
+			return context.WithValue(ctx, ConnIDContextKey{}, connID)
+		},
 	}
 	s.srv = srv
 

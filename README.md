@@ -40,17 +40,17 @@ import (
 type handler struct {
 }
 
-type connIdKey struct{}
+type connIDKey struct{}
 
 func (h *handler) ServeTCP(ctx context.Context, conn tcp.Conn) {
     // 函数结束自动关闭和清理当前TCP连接
 	// 如果需要提供长连接服务，自行用循环结构进行控制
-    connId := ctx.Value(connIdkey{}).(int64)
-    conn.Writer().Write([]byte(fmt.Sprintf("I'm %d", connId)))
+    connID := ctx.Value(connIDkey{}).(int64)
+    conn.Writer().Write([]byte(fmt.Sprintf("I'm %d", tunID, connID)))
 }
 
 func main() {
-    var connId int64 = 0
+    var connID int64 = 0
 
     h := &handler{}
     // 新建一个服务器
@@ -61,8 +61,8 @@ func main() {
         tcp.WithServerHandler(tcp.NewRawTCPHandler(h)),
         // 新连接接入时候的上下文钩子函数，这里给每个连接分配一个ID
         tcp.WithServerConnContextFunc(func(ctx context.Context, c net.Conn) context.Context {
-            connId++
-            return context.WithValue(ctx, connIdKey{}, connId)
+            connID++
+            return context.WithValue(ctx, connIDKey{}, connID)
         }),
     )
     // 结束时优雅的关闭服务器

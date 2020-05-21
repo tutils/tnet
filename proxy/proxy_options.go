@@ -6,7 +6,7 @@ import (
 	"github.com/tutils/tnet/tun"
 )
 
-// proxy options
+// ProxyOptions is options of proxy
 type ProxyOptions struct {
 	tun         tun.Client
 	tunCrypt    crypt.Crypt
@@ -14,7 +14,7 @@ type ProxyOptions struct {
 	connectAddr string
 }
 
-// proxy option
+// ProxyOption is option setter for proxy
 type ProxyOption func(opts *ProxyOptions)
 
 // default proxy options
@@ -44,28 +44,28 @@ func newProxyOptions(opts ...ProxyOption) *ProxyOptions {
 	return opt
 }
 
-// tunnel client opt
+// WithTunClient sets tunnel client opt
 func WithTunClient(tun tun.Client) ProxyOption {
 	return func(opts *ProxyOptions) {
 		opts.tun = tun
 	}
 }
 
-// tunnel crypt opt
+// WithTunClientCrypt sets tunnel crypt opt
 func WithTunClientCrypt(crypt crypt.Crypt) ProxyOption {
 	return func(opts *ProxyOptions) {
 		opts.tunCrypt = crypt
 	}
 }
 
-// local proxy listen address opt
+// WithListenAddress sets local proxy listen address opt
 func WithListenAddress(addr string) ProxyOption {
 	return func(opts *ProxyOptions) {
 		opts.listenAddr = addr
 	}
 }
 
-// remote endpoint connect address opt
+// WithConnectAddress sets remote endpoint connect address opt
 func WithConnectAddress(addr string) ProxyOption {
 	return func(opts *ProxyOptions) {
 		opts.connectAddr = addr

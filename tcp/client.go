@@ -38,7 +38,7 @@ func (oc *onceCancelDialer) Cancel() {
 	oc.once.Do(oc.cancel)
 }
 
-// tcp client
+// Client over tcp
 type Client struct {
 	opts ClientOptions
 
@@ -65,9 +65,10 @@ func (cli *Client) newConn(rwc net.Conn) *cliConn {
 	return c
 }
 
+// ErrClientClosed means client has been closed
 var ErrClientClosed = errors.New("tnet/tcp: Client closed")
 
-// concurrency safe
+// DialAndServe starts client
 func (cli *Client) DialAndServe(ctx context.Context) error {
 	addr := cli.opts.addr
 	if addr == "" {
@@ -112,12 +113,14 @@ func (cli *Client) shuttingDown() bool {
 	return cli.inShutdown.isSet()
 }
 
+// RegisterOnShutdown registers OnShutdown funcs
 func (cli *Client) RegisterOnShutdown(f func()) {
 	cli.mu.Lock()
 	cli.onShutdown = append(cli.onShutdown, f)
 	cli.mu.Unlock()
 }
 
+// Close close all connections of client
 func (cli *Client) Close() error {
 	cli.inShutdown.setTrue()
 	cli.mu.Lock()
@@ -130,6 +133,7 @@ func (cli *Client) Close() error {
 	return nil
 }
 
+// Shutdown shutdowns client graceful
 func (cli *Client) Shutdown(ctx context.Context) error {
 	cli.inShutdown.setTrue()
 
@@ -239,6 +243,7 @@ func (cli *Client) trackConn(c *cliConn, add bool) {
 	}
 }
 
+// NewClient create a new tcp client
 func NewClient(opts ...ClientOption) *Client {
 	opt := newClientOptions(opts...)
 

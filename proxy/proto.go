@@ -6,12 +6,13 @@ import (
 	"io"
 )
 
-// command code of tunnel packet
+// Cmd is command code of tunnel packet
 type Cmd int8
 
 // command values
 const (
 	CmdConfig Cmd = iota
+	CmdTunID
 	CmdConnect
 	CmdConnectResult
 	CmdSend
@@ -50,17 +51,26 @@ func unpackBodyConfig(r io.Reader) (connectAddr string, err error) {
 	return connectAddr, nil
 }
 
-func packBodyConnect(w io.Writer, connId int64) error {
-	return binary.Write(w, binary.BigEndian, connId)
+func packBodyTunID(w io.Writer, tunID int64) error {
+	return binary.Write(w, binary.BigEndian, tunID)
 }
 
-func unpackBodyConnect(r io.Reader) (connId int64, err error) {
-	err = binary.Read(r, binary.BigEndian, &connId)
-	return connId, err
+func unpackBodyTunID(r io.Reader) (tunID int64, err error) {
+	err = binary.Read(r, binary.BigEndian, &tunID)
+	return tunID, err
 }
 
-func packBodyConnectResult(w io.Writer, connId int64, connectResult error) error {
-	if err := binary.Write(w, binary.BigEndian, connId); err != nil {
+func packBodyConnect(w io.Writer, connID int64) error {
+	return binary.Write(w, binary.BigEndian, connID)
+}
+
+func unpackBodyConnect(r io.Reader) (connID int64, err error) {
+	err = binary.Read(r, binary.BigEndian, &connID)
+	return connID, err
+}
+
+func packBodyConnectResult(w io.Writer, connID int64, connectResult error) error {
+	if err := binary.Write(w, binary.BigEndian, connID); err != nil {
 		return err
 	}
 	if connectResult != nil {
@@ -78,24 +88,24 @@ func packBodyConnectResult(w io.Writer, connId int64, connectResult error) error
 	return nil
 }
 
-func unpackBodyConnectResult(r io.Reader) (connId int64, connectResult error, err error) {
-	err = binary.Read(r, binary.BigEndian, &connId)
+func unpackBodyConnectResult(r io.Reader) (connID int64, connectResult error, err error) {
+	err = binary.Read(r, binary.BigEndian, &connID)
 	var n int16
 	if err := binary.Read(r, binary.BigEndian, &n); err != nil {
-		return connId, connectResult, err
+		return connID, connectResult, err
 	}
 	if n > 0 {
 		b := make([]byte, n)
 		if err := binary.Read(r, binary.BigEndian, b); err != nil {
-			return connId, connectResult, err
+			return connID, connectResult, err
 		}
 		connectResult = errors.New(string(b))
 	}
-	return connId, connectResult, nil
+	return connID, connectResult, nil
 }
 
-func packBodySend(w io.Writer, connId int64, data []byte) error {
-	if err := binary.Write(w, binary.BigEndian, connId); err != nil {
+func packBodySend(w io.Writer, connID int64, data []byte) error {
+	if err := binary.Write(w, binary.BigEndian, connID); err != nil {
 		return err
 	}
 	if err := binary.Write(w, binary.BigEndian, int64(len(data))); err != nil {
@@ -107,26 +117,26 @@ func packBodySend(w io.Writer, connId int64, data []byte) error {
 	return nil
 }
 
-func unpackBodySend(r io.Reader) (connId int64, data []byte, err error) {
-	if err := binary.Read(r, binary.BigEndian, &connId); err != nil {
-		return connId, data, err
+func unpackBodySend(r io.Reader) (connID int64, data []byte, err error) {
+	if err := binary.Read(r, binary.BigEndian, &connID); err != nil {
+		return connID, data, err
 	}
 	var n int64
 	if err := binary.Read(r, binary.BigEndian, &n); err != nil {
-		return connId, data, err
+		return connID, data, err
 	}
 	data = make([]byte, n)
 	if err := binary.Read(r, binary.BigEndian, data); err != nil {
-		return connId, data, err
+		return connID, data, err
 	}
-	return connId, data, nil
+	return connID, data, nil
 }
 
-func packBodyClose(w io.Writer, connId int64) error {
-	return binary.Write(w, binary.BigEndian, connId)
+func packBodyClose(w io.Writer, connID int64) error {
+	return binary.Write(w, binary.BigEndian, connID)
 }
 
-func unpackBodyClose(r io.Reader) (connId int64, err error) {
-	err = binary.Read(r, binary.BigEndian, &connId)
-	return connId, err
+func unpackBodyClose(r io.Reader) (connID int64, err error) {
+	err = binary.Read(r, binary.BigEndian, &connID)
+	return connID, err
 }

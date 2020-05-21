@@ -10,7 +10,7 @@ type chandler struct {
 	t *testing.T
 }
 
-func (h *chandler) ServeTun(r io.Reader, w io.Writer) {
+func (h *chandler) ServeTun(ctx context.Context, r io.Reader, w io.Writer) {
 	buf := make([]byte, 1<<10)
 	w.Write([]byte("Hello"))
 	r.Read(buf)

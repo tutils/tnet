@@ -5,13 +5,13 @@ import (
 	"github.com/tutils/tnet/tun"
 )
 
-// endpoint options
+// EndpointOptions is the options of endpoint
 type EndpointOptions struct {
 	tun      tun.Server
 	tunCrypt crypt.Crypt
 }
 
-// endpoint option
+// EndpointOption is option setter for endpoint
 type EndpointOption func(opts *EndpointOptions)
 
 // default endpoint options
@@ -32,14 +32,14 @@ func newEndpointOptions(opts ...EndpointOption) *EndpointOptions {
 	return opt
 }
 
-// tunnel server opt
+// WithTunServer sets tunnel server opt
 func WithTunServer(tun tun.Server) EndpointOption {
 	return func(opts *EndpointOptions) {
 		opts.tun = tun
 	}
 }
 
-// tunnel crypt opt
+// WithTunServerCrypt sets tunnel crypt opt
 func WithTunServerCrypt(crypt crypt.Crypt) EndpointOption {
 	return func(opts *EndpointOptions) {
 		opts.tunCrypt = crypt

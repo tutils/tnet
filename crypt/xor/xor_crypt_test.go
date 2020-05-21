@@ -15,8 +15,6 @@ func TestNewCrypt(t *testing.T) {
 	en.Write([]byte("abcdefg"))
 	t.Log(buf.Bytes())
 
-	bs := make([]byte, 7)
-	//c.Read(bs)
-	bs, _ = ioutil.ReadAll(de)
+	bs, _ := ioutil.ReadAll(de)
 	t.Log(string(bs))
 }

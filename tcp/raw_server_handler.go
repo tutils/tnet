@@ -2,23 +2,24 @@ package tcp
 
 import "context"
 
-// raw tcp handler
+// RawTCPHandler is raw tcp handler
 type RawTCPHandler interface {
 	ServeTCP(ctx context.Context, conn Conn)
 }
 
-// raw tcp connection handler
+// RawTCPConnHandler is raw tcp connection handler
 type RawTCPConnHandler struct {
 	Handler RawTCPHandler
 }
 
+// ServeConn serves new connection
 func (ch *RawTCPConnHandler) ServeConn(ctx context.Context, conn Conn) {
 	if h := ch.Handler; h != nil {
 		h.ServeTCP(ctx, conn)
 	}
 }
 
-// create a raw tcp connection handler
+// NewRawTCPConnHandler creates a new raw tcp connection handler
 func NewRawTCPConnHandler(h RawTCPHandler) ConnHandler {
 	return &RawTCPConnHandler{
 		Handler: h,
