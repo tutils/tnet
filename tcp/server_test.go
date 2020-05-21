@@ -21,11 +21,11 @@ func (h *handler) ServeTCP(ctx context.Context, conn Conn) {
 		ln, _, err := bufr.ReadLine()
 		if err != nil {
 			return
-		} else {
-			bufw.WriteString("OK\n")
-			bufw.Flush()
-			h.t.Logf("%s", string(ln))
 		}
+
+		bufw.WriteString("OK\n")
+		bufw.Flush()
+		h.t.Logf("%s", string(ln))
 	}
 }
 
