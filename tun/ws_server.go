@@ -133,6 +133,7 @@ func newWsServer(opts ...ServerOption) Server {
 		Addr:    addr.host(),
 		Handler: mux,
 		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
+			connID++
 			return context.WithValue(ctx, ConnIDContextKey{}, connID)
 		},
 	}
