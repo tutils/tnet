@@ -1,6 +1,9 @@
 package tun
 
-import "github.com/gorilla/websocket"
+import (
+	"context"
+	"github.com/gorilla/websocket"
+)
 
 type wsClient struct {
 	opts ClientOptions
@@ -20,7 +23,8 @@ func (c *wsClient) DialAndServe() error {
 	if h := c.opts.handler; h != nil {
 		wsr := newWsReader(conn)
 		wsw := newWsWriter(conn)
-		h.ServeTun(wsr, wsw)
+		ctx := context.Background()
+		h.ServeTun(ctx, wsr, wsw)
 	}
 	return nil
 }

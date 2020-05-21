@@ -1,13 +1,7 @@
 # TNet
 
-[![License][1]][2]
-[![Go Report Card][3]][4]
-
-[1]: https://img.shields.io/:license-apache-blue.svg
-[2]: https://opensource.org/licenses/Apache-2.0
-[3]: https://goreportcard.com/badge/tutils/tnet
-[4]: https://goreportcard.com/report/github.com/tutils/tnet
-
+[![License](https://img.shields.io/:license-apache-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Go Report Card](https://goreportcard.com/badge/github.com/tutils/tnet)](https://goreportcard.com/report/github.com/tutils/tnet)
 
 插件化架构的网络开发工具包。
 

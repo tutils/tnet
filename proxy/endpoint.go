@@ -15,6 +15,7 @@ import (
 type endpointConnDataKey struct{}
 
 type endpointConnData struct {
+	tunID   int64
 	connID  int64
 	writeCh chan []byte
 	closeCh chan struct{}
@@ -32,6 +33,7 @@ func (e *endpointHandler) ServeTCP(ctx context.Context, conn tcp.Conn) {
 	connMap := e.connMap
 
 	connData := ctx.Value(endpointConnDataKey{}).(*endpointConnData)
+	tunID := connData.tunID
 	connID := connData.connID
 	connMap.Store(connID, connData)
 	log.Printf("new endpoint connection, connID %d:%d", tunID, connID)
@@ -223,6 +225,7 @@ func (h *tunServerHandler) ServeTun(ctx context.Context, r io.Reader, w io.Write
 			}
 			ctx := context.Background()
 			data := &endpointConnData{
+				tunID:   tunID,
 				connID:  connID,
 				writeCh: make(chan []byte, 1<<8),
 				closeCh: make(chan struct{}),
