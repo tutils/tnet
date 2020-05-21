@@ -132,3 +132,7 @@ p := proxy.NewProxy(
 ## 命令行界面
 
 详见 ```tnet --help```
+
+## 协议
+
+tnet已获得Apache 2.0许可。
