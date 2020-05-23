@@ -46,7 +46,6 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	flags := endpointCmd.Flags()
-	flags.StringVarP(&connectAddress, "connect", "c", "127.0.0.1:3128", "connect remote proxied application address")
 	flags.StringVarP(&tunServerListenAddress, "tunnel-listen", "", "", "server tunnel listening address")
 	flags.Int64VarP(&xorCryptSeed, "crypt-key", "k", 98545715754651, "crypt key")
 }
