@@ -96,6 +96,15 @@ func (cli *Client) DialAndServe(ctx context.Context) error {
 		}
 	}
 
+	if period := cli.opts.keepAlivePeriod; period > 0 {
+		tcpConn := rw.(*net.TCPConn)
+		tcpConn.SetKeepAlive(true)
+		tcpConn.SetKeepAlivePeriod(period)
+		if count := cli.opts.keepAliveCount; count > 0 {
+			SetKeepAliveCount(tcpConn, count)
+		}
+	}
+
 	connCtx := ctx
 	if cc := cli.opts.connContext; cc != nil {
 		connCtx = cc(connCtx, rw)

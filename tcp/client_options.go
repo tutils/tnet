@@ -3,6 +3,7 @@ package tcp
 import (
 	"context"
 	"net"
+	"time"
 )
 
 // ClientOptions is options of tcp client
@@ -10,8 +11,10 @@ type ClientOptions struct {
 	addr    string
 	handler ConnHandler
 
-	connContext  func(ctx context.Context, c net.Conn) context.Context
-	errorLogFunc func(fmt string, args ...interface{})
+	connContext     func(ctx context.Context, c net.Conn) context.Context
+	errorLogFunc    func(fmt string, args ...interface{})
+	keepAlivePeriod time.Duration
+	keepAliveCount  int
 }
 
 // ClientOption is option setter for tcp client
@@ -58,5 +61,19 @@ func WithClientConnContextFunc(f func(ctx context.Context, c net.Conn) context.C
 func WithClientErrorLogFunc(errorLogFunc func(fmt string, args ...interface{})) ClientOption {
 	return func(opts *ClientOptions) {
 		opts.errorLogFunc = errorLogFunc
+	}
+}
+
+// WithClientKeepAlivePeriod sets tcp keepalive period opt
+func WithClientKeepAlivePeriod(period time.Duration) ClientOption {
+	return func(opts *ClientOptions) {
+		opts.keepAlivePeriod = period
+	}
+}
+
+// WithClientKeepAliveCount sets tcp keepalive count opt
+func WithClientKeepAliveCount(count int) ClientOption {
+	return func(opts *ClientOptions) {
+		opts.keepAliveCount = count
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"io"
 	"log"
 	"sync"
+	"time"
 )
 
 type endpointConnDataKey struct{}
@@ -206,6 +207,8 @@ func (h *tunServerHandler) ServeTun(ctx context.Context, r io.Reader, w io.Write
 	c := tcp.NewClient(
 		tcp.WithConnectAddress(connectAddr),
 		tcp.WithClientHandler(tcp.NewRawTCPConnHandler(tcph)),
+		tcp.WithClientKeepAlivePeriod(time.Second*15),
+		tcp.WithClientKeepAliveCount(3),
 	)
 	defer c.Shutdown(context.Background())
 

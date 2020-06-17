@@ -119,6 +119,15 @@ func (srv *Server) ListenAndServe() error {
 			return err
 		}
 
+		if period := srv.opts.keepAlivePeriod; period > 0 {
+			tcpConn := rw.(*net.TCPConn)
+			tcpConn.SetKeepAlive(true)
+			tcpConn.SetKeepAlivePeriod(period)
+			if count := srv.opts.keepAliveCount; count > 0 {
+				SetKeepAliveCount(tcpConn, count)
+			}
+		}
+
 		connCtx := ctx
 		if cc := srv.opts.connContext; cc != nil {
 			connCtx = cc(connCtx, rw)

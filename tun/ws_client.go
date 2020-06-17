@@ -3,6 +3,7 @@ package tun
 import (
 	"context"
 	"github.com/gorilla/websocket"
+	"time"
 )
 
 type wsClient struct {
@@ -24,6 +25,14 @@ func (c *wsClient) DialAndServe() error {
 		wsr := newWsReader(conn)
 		wsw := newWsWriter(conn)
 		ctx := context.Background()
+
+		conn.SetReadDeadline(time.Now().Add(readTimeout))
+		origPingHandler := conn.PingHandler()
+		conn.SetPingHandler(func(appData string) error {
+			conn.SetReadDeadline(time.Now().Add(readTimeout))
+			return origPingHandler(appData)
+		})
+
 		h.ServeTun(ctx, wsr, wsw)
 	}
 	return nil

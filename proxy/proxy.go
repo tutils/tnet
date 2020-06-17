@@ -11,6 +11,7 @@ import (
 	"log"
 	"net"
 	"sync"
+	"time"
 )
 
 type proxyConnDataKey struct{}
@@ -228,6 +229,8 @@ func (h *tunClientHandler) ServeTun(ctx context.Context, r io.Reader, w io.Write
 			}
 			return context.WithValue(ctx, proxyConnDataKey{}, data)
 		}),
+		tcp.WithServerKeepAlivePeriod(time.Second*15),
+		tcp.WithServerKeepAliveCount(3),
 	)
 
 	errCh := make(chan error, 1)

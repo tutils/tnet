@@ -5,9 +5,11 @@ import (
 	"context"
 	"github.com/gorilla/websocket"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 type wsAddr struct {
@@ -57,11 +59,19 @@ type wsReader struct {
 func (wsr *wsReader) Read(p []byte) (n int, err error) {
 	n, err = wsr.r.Read(p)
 	if err == io.EOF {
-		_, wsr.r, err = wsr.conn.NextReader()
-		if err != nil {
-			return 0, err
+		for {
+			var typ int
+			typ, wsr.r, err = wsr.conn.NextReader()
+			if err != nil {
+				return 0, err
+			}
+			if typ == websocket.BinaryMessage {
+				return wsr.r.Read(p)
+			}
+			if _, err := ioutil.ReadAll(wsr.r); err != nil {
+				return 0, err
+			}
 		}
-		return wsr.r.Read(p)
 	}
 	return n, err
 }
@@ -107,7 +117,13 @@ func (s *wsServer) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		wsr := newWsReader(conn)
 		wsw := newWsWriter(conn)
 		ctx := r.Context()
+
+		done := make(chan struct{})
+		go startPing(conn, done)
+
 		h.ServeTun(ctx, wsr, wsw)
+
+		close(done)
 	}
 }
 
@@ -140,4 +156,26 @@ func newWsServer(opts ...ServerOption) Server {
 	s.srv = srv
 
 	return s
+}
+
+const readTimeout = time.Second * 15
+const pingPeriod = time.Second * 10
+const writeTimeout = time.Second
+
+func startPing(conn *websocket.Conn, done chan struct{}) {
+	conn.SetReadDeadline(time.Now().Add(readTimeout))
+	conn.SetPongHandler(func(string) error {
+		conn.SetReadDeadline(time.Now().Add(readTimeout))
+		return nil
+	})
+	ticker := time.NewTicker(pingPeriod)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(writeTimeout))
+		case <-done:
+			return
+		}
+	}
 }

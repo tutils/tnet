@@ -4,6 +4,7 @@ package tun
 type ClientOptions struct {
 	addr    string
 	handler Handler
+	period  int
 }
 
 // ClientOption is option setter for client
