@@ -49,7 +49,6 @@ var proxyCmd = &cobra.Command{
 				time.Sleep(tempDelay)
 				continue
 			}
-			return nil
 		}
 	},
 }
