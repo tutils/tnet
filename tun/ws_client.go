@@ -20,6 +20,7 @@ func (c *wsClient) DialAndServe() error {
 	if err != nil {
 		return err
 	}
+	defer conn.Close()
 	c.conn = conn
 	if h := c.opts.handler; h != nil {
 		wsr := newWsReader(conn)

@@ -5,6 +5,7 @@ import (
 	"github.com/tutils/tnet/proxy"
 	"github.com/tutils/tnet/tun"
 	"log"
+	"time"
 )
 
 var (
@@ -31,10 +32,25 @@ var proxyCmd = &cobra.Command{
 			proxy.WithConnectAddress(connectAddress),
 			proxy.WithTunClientCrypt(proxy.DefaultTunCrypt),
 		)
-		if err := p.DialAndServe(); err != nil {
-			log.Fatalln(err)
+
+		// backoff
+		var tempDelay time.Duration
+		for {
+			if err := p.DialAndServe(); err != nil {
+				if tempDelay == 0 {
+					tempDelay = 5 * time.Millisecond
+				} else {
+					tempDelay *= 2
+				}
+				if max := 1 * time.Second; tempDelay > max {
+					tempDelay = max
+				}
+				log.Println(err)
+				time.Sleep(tempDelay)
+				continue
+			}
+			return nil
 		}
-		return nil
 	},
 }
 

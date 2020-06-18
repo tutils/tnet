@@ -2,3 +2,4 @@
 *.pb.go
 *.pb.micro.go
 tnet/tnet*
+*.log
