@@ -39,7 +39,7 @@ type connIDKey struct{}
 
 func (h *handler) ServeTCP(ctx context.Context, conn tcp.Conn) {
     // 函数结束自动关闭和清理当前TCP连接
-	// 如果需要提供长连接服务，自行用循环结构进行控制
+    // 如果需要提供长连接服务，自行用循环结构进行控制
     connID := ctx.Value(connIDkey{}).(int64)
     conn.Writer().Write([]byte(fmt.Sprintf("I'm %d", tunID, connID)))
 }
