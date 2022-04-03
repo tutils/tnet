@@ -68,6 +68,9 @@ func (cli *Client) newConn(rwc net.Conn) *cliConn {
 // ErrClientClosed means client has been closed
 var ErrClientClosed = errors.New("tnet/tcp: Client closed")
 
+// ErrConnectionRefused means connection refused
+var ErrConnectionRefused = errors.New("tnet/tcp: Connection refused")
+
 // DialAndServe starts client
 func (cli *Client) DialAndServe(ctx context.Context) error {
 	addr := cli.opts.addr
@@ -93,6 +96,7 @@ func (cli *Client) DialAndServe(ctx context.Context) error {
 		case <-cli.getDoneChan():
 			return ErrClientClosed
 		default:
+			return ErrConnectionRefused
 		}
 	}
 
