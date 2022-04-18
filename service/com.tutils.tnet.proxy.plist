@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.tutils.tnet.proxy</string>
+    <key>Program</key>
+    <string>/usr/local/bin/tnet</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/local/bin/tnet</string>
+		<string>proxy</string>
+		<string>--listen=0.0.0.0:56080</string>
+		<string>--connect=127.0.0.1:1080</string>
+		<string>--tunnel-connect=ws://your.hostname:8080/stream</string>
+		<string>--crypt-key=0000000</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+    <key>KeepAlive</key>
+	<true/>
+    <key>WorkingDirectory</key>
+    <string>/Users/t5w0rd</string>
+</dict>
+</plist>
