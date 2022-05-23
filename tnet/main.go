@@ -1,10 +1,11 @@
 package main
 
 import (
-	"github.com/tutils/tnet/cmd"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
+
+	"github.com/tutils/tnet/cmd"
 )
 
 func main() {

@@ -2,8 +2,9 @@ package tun
 
 import (
 	"context"
-	"github.com/gorilla/websocket"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 type wsClient struct {

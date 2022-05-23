@@ -3,14 +3,15 @@ package proxy
 import (
 	"bytes"
 	"context"
-	"github.com/tutils/tnet"
-	"github.com/tutils/tnet/crypt"
-	"github.com/tutils/tnet/tcp"
-	"github.com/tutils/tnet/tun"
 	"io"
 	"log"
 	"sync"
 	"time"
+
+	"github.com/tutils/tnet"
+	"github.com/tutils/tnet/crypt"
+	"github.com/tutils/tnet/tcp"
+	"github.com/tutils/tnet/tun"
 )
 
 type endpointConnDataKey struct{}

@@ -1,9 +1,10 @@
 package xor
 
 import (
-	"github.com/tutils/tnet/crypt"
 	"io"
 	"math/rand"
+
+	"github.com/tutils/tnet/crypt"
 )
 
 type xorCrypt struct {

@@ -1,11 +1,12 @@
 package cmd
 
 import (
+	"log"
+	"time"
+
 	"github.com/spf13/cobra"
 	"github.com/tutils/tnet/proxy"
 	"github.com/tutils/tnet/tun"
-	"log"
-	"time"
 )
 
 var (

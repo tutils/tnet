@@ -3,13 +3,14 @@ package tun
 import (
 	"bytes"
 	"context"
-	"github.com/gorilla/websocket"
 	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 type wsAddr struct {
