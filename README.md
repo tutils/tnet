@@ -52,7 +52,7 @@ func main() {
     srv := tcp.NewServer(
         // 监听地址
         tcp.WithListenAddress(":8080"),
-    	// 所采用的TCP连接处理器，可以根据要提供的TCP服务的性质选择合适的处理器。这里使用原始TCP处理器
+        // 所采用的TCP连接处理器，可以根据要提供的TCP服务的性质选择合适的处理器。这里使用原始TCP处理器
         tcp.WithServerHandler(tcp.NewRawTCPHandler(h)),
         // 新连接接入时候的上下文钩子函数，这里给每个连接分配一个ID
         tcp.WithServerConnContextFunc(func(ctx context.Context, c net.Conn) context.Context {
@@ -85,11 +85,11 @@ import (
 func main() {
     // 新建一个代理
     p := proxy.NewProxy(
-    	// 所采用的隧道客户端
+        // 所采用的隧道客户端
         proxy.WithTunClient(
             // 新建一个默认隧道客户端
             tun.NewClient(
-            	// 隧道连接地址
+                // 隧道连接地址
                 tun.WithConnectAddress("ws://127.0.0.1:8080/stream"),
                 // 隧道连接处理器
                 tun.WithClientHandler(proxy.NewTunClientHandler()),
@@ -133,6 +133,7 @@ p := proxy.NewProxy(
 )
 
 ```
+
 ## 命令行界面
 
 详见 ```tnet --help```。
