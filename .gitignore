@@ -3,3 +3,4 @@
 *.pb.micro.go
 tnet/tnet*
 *.log
+.DS_Store
