@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net"
 	"sync"
 	"time"
@@ -43,10 +44,18 @@ func (r *counterReader) Read(p []byte) (n int, err error) {
 	return n, err
 }
 
-var suffix = []string{"B", "KB", "MB", "GB", "TB"}
+var units = []string{"B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"}
+var log1024 = math.Log(1024.0)
 
 func humanReadable(bytes uint64) string {
-	return fmt.Sprintf("%d B", bytes)
+	base := 1024.0
+	f := float64(bytes)
+	if f < base {
+		return fmt.Sprintf("%d %s", bytes, units[0])
+	}
+	exp := int(math.Log(f) / log1024)
+	roundedSize := int64(f / math.Pow(base, float64(exp)))
+	return fmt.Sprintf("%d %s", roundedSize, units[exp])
 }
 
 type proxyConnDataKey struct{}
@@ -178,7 +187,7 @@ func (h *proxyHandler) ServeTCP(ctx context.Context, conn tcp.Conn) {
 			return
 		}
 		if cw, ok := tunw.(*counterWriter); ok {
-			log.Printf("Write CmdSend, connID %d:%d, %d bytes, download %s/s", h.tunID, connID, tunwbuf.Len(), humanReadable(uint64(cw.c.IncreaceRatePerSec())))
+			log.Printf("Write CmdSend, connID %d:%d, %d bytes, upload %s/s", h.tunID, connID, tunwbuf.Len(), humanReadable(uint64(cw.c.IncreaceRatePerSec())))
 		} else {
 			log.Printf("Write CmdSend, connID %d:%d, %d bytes", h.tunID, connID, tunwbuf.Len())
 		}
@@ -320,7 +329,7 @@ func (h *tunClientHandler) ServeTun(ctx context.Context, r io.Reader, w io.Write
 		case CmdSend:
 			connID, data, err := unpackBodySend(tunr)
 			if cr, ok := tunr.(*counterReader); ok {
-				log.Printf("Read CmdSend, connID %d:%d, %d bytes, upload %s/s", tunID, connID, len(data), humanReadable(uint64(cr.c.IncreaceRatePerSec())))
+				log.Printf("Read CmdSend, connID %d:%d, %d bytes, download %s/s", tunID, connID, len(data), humanReadable(uint64(cr.c.IncreaceRatePerSec())))
 			} else {
 				log.Printf("Read CmdSend, connID %d:%d, %d bytes", tunID, connID, len(data))
 			}
