@@ -7,6 +7,8 @@ import (
 	"github.com/tutils/tnet/crypt"
 )
 
+var _ crypt.Crypt = &xorCrypt{}
+
 type xorCrypt struct {
 	seed int64
 }

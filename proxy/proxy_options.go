@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"github.com/tutils/tnet/counter"
 	"github.com/tutils/tnet/crypt"
 	"github.com/tutils/tnet/crypt/xor"
 	"github.com/tutils/tnet/tun"
@@ -8,10 +9,12 @@ import (
 
 // ProxyOptions is options of proxy
 type ProxyOptions struct {
-	tun         tun.Client
-	tunCrypt    crypt.Crypt
-	listenAddr  string
-	connectAddr string
+	tun             tun.Client
+	tunCrypt        crypt.Crypt
+	listenAddr      string
+	connectAddr     string
+	downloadCounter counter.Counter
+	uploadCounter   counter.Counter
 }
 
 // ProxyOption is option setter for proxy
@@ -69,5 +72,19 @@ func WithListenAddress(addr string) ProxyOption {
 func WithConnectAddress(addr string) ProxyOption {
 	return func(opts *ProxyOptions) {
 		opts.connectAddr = addr
+	}
+}
+
+// WithDownloadCounter sets download counter opt
+func WithDownloadCounter(counter counter.Counter) ProxyOption {
+	return func(opts *ProxyOptions) {
+		opts.downloadCounter = counter
+	}
+}
+
+// WithUploadCounter sets upload counter opt
+func WithUploadCounter(counter counter.Counter) ProxyOption {
+	return func(opts *ProxyOptions) {
+		opts.uploadCounter = counter
 	}
 }

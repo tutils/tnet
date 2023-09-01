@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/tutils/tnet/counter/period"
 	"github.com/tutils/tnet/proxy"
 	"github.com/tutils/tnet/tun"
 )
@@ -32,6 +33,8 @@ var proxyCmd = &cobra.Command{
 			proxy.WithListenAddress(listenAddress),
 			proxy.WithConnectAddress(connectAddress),
 			proxy.WithTunClientCrypt(proxy.DefaultTunCrypt),
+			proxy.WithDownloadCounter(period.NewPeriodCounter(time.Second)),
+			proxy.WithUploadCounter(period.NewPeriodCounter(time.Second)),
 		)
 
 		// backoff

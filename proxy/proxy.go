@@ -3,6 +3,7 @@ package proxy
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -10,15 +11,47 @@ import (
 	"time"
 
 	"github.com/tutils/tnet"
+	"github.com/tutils/tnet/counter"
 	"github.com/tutils/tnet/crypt"
 	"github.com/tutils/tnet/tcp"
 	"github.com/tutils/tnet/tun"
 )
 
+type counterWriter struct {
+	w io.Writer
+	c counter.Counter
+}
+
+func (w *counterWriter) Write(p []byte) (n int, err error) {
+	n, err = w.w.Write(p)
+	if err == nil && n >= 0 {
+		w.c.Add(int64(n))
+	}
+	return n, err
+}
+
+type counterReader struct {
+	r io.Reader
+	c counter.Counter
+}
+
+func (r *counterReader) Read(p []byte) (n int, err error) {
+	n, err = r.r.Read(p)
+	if err == nil && n >= 0 {
+		r.c.Add(int64(n))
+	}
+	return n, err
+}
+
+var suffix = []string{"B", "KB", "MB", "GB", "TB"}
+
+func humanReadable(bytes uint64) string {
+	return fmt.Sprintf("%d B", bytes)
+}
+
 type proxyConnDataKey struct{}
 
 type proxyConnData struct {
-	tunID        int64
 	connID       int64
 	connectResCh chan error
 	writeCh      chan []byte
@@ -28,10 +61,11 @@ type proxyConnData struct {
 // proxyHandler
 type proxyHandler struct {
 	tunw    io.Writer // SyncWriter
+	tunID   int64
 	connMap *sync.Map
 }
 
-// called from multiple goroutines
+// ServeTCP called from multiple goroutines
 func (h *proxyHandler) ServeTCP(ctx context.Context, conn tcp.Conn) {
 	// new proxy connection
 	connr := conn.Reader()
@@ -40,11 +74,10 @@ func (h *proxyHandler) ServeTCP(ctx context.Context, conn tcp.Conn) {
 
 	// conn_reader -> tun_writer
 	connData := ctx.Value(proxyConnDataKey{}).(*proxyConnData)
-	tunID := connData.tunID
 	connID := connData.connID
 	connMap.Store(connID, connData)
-	log.Printf("new proxy connection, connID %d:%d", tunID, connID)
-	defer log.Printf("proxy connection closed, connID %d:%d", tunID, connID)
+	log.Printf("new proxy connection, connID %d:%d", h.tunID, connID)
+	defer log.Printf("proxy connection closed, connID %d:%d", h.tunID, connID)
 
 	tunwbuf := &bytes.Buffer{} // TODO: use pool
 	if err := packHeader(tunwbuf, CmdConnect); err != nil {
@@ -55,6 +88,7 @@ func (h *proxyHandler) ServeTCP(ctx context.Context, conn tcp.Conn) {
 		log.Println("packBodyConnect err", err)
 		return
 	}
+	log.Printf("Write CmdConnect, connID %d:%d", h.tunID, connID)
 	if _, err := tunw.Write(tunwbuf.Bytes()); err != nil {
 		log.Println("write tun err", err)
 		return
@@ -90,6 +124,7 @@ func (h *proxyHandler) ServeTCP(ctx context.Context, conn tcp.Conn) {
 				log.Println("packBodyClose err", err)
 				break
 			}
+			log.Printf("Write CmdClose, connID %d:%d", h.tunID, connID)
 			if _, err := tunw.Write(tunwbuf.Bytes()); err != nil {
 				log.Println("write tun err", err)
 				break
@@ -142,6 +177,11 @@ func (h *proxyHandler) ServeTCP(ctx context.Context, conn tcp.Conn) {
 			log.Println("packBodySend err", err)
 			return
 		}
+		if cw, ok := tunw.(*counterWriter); ok {
+			log.Printf("Write CmdSend, connID %d:%d, %d bytes, download %s/s", h.tunID, connID, tunwbuf.Len(), humanReadable(uint64(cw.c.IncreaceRatePerSec())))
+		} else {
+			log.Printf("Write CmdSend, connID %d:%d, %d bytes", h.tunID, connID, tunwbuf.Len())
+		}
 		if _, err := tunw.Write(tunwbuf.Bytes()); err != nil {
 			log.Println("write tun err", err)
 			return
@@ -151,9 +191,11 @@ func (h *proxyHandler) ServeTCP(ctx context.Context, conn tcp.Conn) {
 
 // tunClientHandler
 type tunClientHandler struct {
-	crypt       crypt.Crypt
-	proxyAddr   string
-	connectAddr string
+	crypt           crypt.Crypt
+	proxyAddr       string
+	connectAddr     string
+	downloadCounter counter.Counter
+	uploadCounter   counter.Counter
 }
 
 func (h *tunClientHandler) ServeTun(ctx context.Context, r io.Reader, w io.Writer) {
@@ -168,12 +210,18 @@ func (h *tunClientHandler) ServeTun(ctx context.Context, r io.Reader, w io.Write
 		tunw = w
 	}
 	tunw = tnet.NewSyncWriter(tunw)
+	if h.uploadCounter != nil {
+		tunw = &counterWriter{w: tunw, c: h.uploadCounter}
+	}
 
 	var tunr io.Reader
 	if h.crypt != nil {
 		tunr = h.crypt.NewDecoder(r)
 	} else {
 		tunr = r
+	}
+	if h.downloadCounter != nil {
+		tunr = &counterReader{r: tunr, c: h.downloadCounter}
 	}
 
 	var connMap sync.Map
@@ -188,6 +236,7 @@ func (h *tunClientHandler) ServeTun(ctx context.Context, r io.Reader, w io.Write
 		log.Println("packBodyConfig err", err)
 		return
 	}
+	log.Printf("Write CmdConfig, connectAddr %s", h.connectAddr)
 	if _, err := tunw.Write(buf.Bytes()); err != nil {
 		log.Println("write tun err", err)
 		return
@@ -211,6 +260,7 @@ func (h *tunClientHandler) ServeTun(ctx context.Context, r io.Reader, w io.Write
 
 	tcph := &proxyHandler{
 		tunw:    tunw,
+		tunID:   tunID,
 		connMap: &connMap,
 	}
 
@@ -222,7 +272,6 @@ func (h *tunClientHandler) ServeTun(ctx context.Context, r io.Reader, w io.Write
 		tcp.WithServerConnContextFunc(func(ctx context.Context, c net.Conn) context.Context {
 			connID++
 			data := &proxyConnData{
-				tunID:        tunID,
 				connID:       connID,
 				connectResCh: make(chan error, 1),
 				writeCh:      make(chan []byte, 1<<8),
@@ -256,7 +305,7 @@ func (h *tunClientHandler) ServeTun(ctx context.Context, r io.Reader, w io.Write
 		switch cmd {
 		case CmdConnectResult:
 			connID, connectResult, err := unpackBodyConnectResult(tunr)
-			log.Printf("CmdConnectResult, connID %d:%d, %v", tunID, connID, connectResult)
+			log.Printf("Read CmdConnectResult, connID %d:%d, %v", tunID, connID, connectResult)
 			if err != nil {
 				log.Println("unpackBodyConnectResult err", err)
 				return
@@ -270,7 +319,11 @@ func (h *tunClientHandler) ServeTun(ctx context.Context, r io.Reader, w io.Write
 
 		case CmdSend:
 			connID, data, err := unpackBodySend(tunr)
-			log.Printf("CmdSend, connID %d:%d, %d bytes", tunID, connID, len(data))
+			if cr, ok := tunr.(*counterReader); ok {
+				log.Printf("Read CmdSend, connID %d:%d, %d bytes, upload %s/s", tunID, connID, len(data), humanReadable(uint64(cr.c.IncreaceRatePerSec())))
+			} else {
+				log.Printf("Read CmdSend, connID %d:%d, %d bytes", tunID, connID, len(data))
+			}
 			if err != nil {
 				log.Println("unpackBodySend err", err)
 				return
@@ -284,7 +337,7 @@ func (h *tunClientHandler) ServeTun(ctx context.Context, r io.Reader, w io.Write
 
 		case CmdClose:
 			connID, err := unpackBodyClose(tunr)
-			log.Printf("CmdClose, connID %d:%d", tunID, connID)
+			log.Printf("Read CmdClose, connID %d:%d", tunID, connID)
 			if err != nil {
 				log.Println("unpackBodyClose err", err)
 				return
@@ -328,6 +381,8 @@ func NewProxy(opts ...ProxyOption) *Proxy {
 		h.crypt = opt.tunCrypt
 		h.proxyAddr = opt.listenAddr
 		h.connectAddr = opt.connectAddr
+		h.downloadCounter = opt.downloadCounter
+		h.uploadCounter = opt.uploadCounter
 	}
 
 	return p

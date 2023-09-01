@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -69,7 +68,7 @@ func (wsr *wsReader) Read(p []byte) (n int, err error) {
 			if typ == websocket.BinaryMessage {
 				return wsr.r.Read(p)
 			}
-			if _, err := ioutil.ReadAll(wsr.r); err != nil {
+			if _, err := io.ReadAll(wsr.r); err != nil {
 				return 0, err
 			}
 		}
@@ -98,6 +97,8 @@ func newWsWriter(conn *websocket.Conn) io.Writer {
 		conn: conn,
 	}
 }
+
+var _ Server = &wsServer{}
 
 type wsServer struct {
 	opts ServerOptions

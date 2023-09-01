@@ -222,7 +222,7 @@ func (h *tunServerHandler) ServeTun(ctx context.Context, r io.Reader, w io.Write
 		switch cmd {
 		case CmdConnect:
 			connID, err := unpackBodyConnect(tunr)
-			log.Printf("CmdConnect, connID %d:%d", tunID, connID)
+			log.Printf("Read CmdConnect, connID %d:%d", tunID, connID)
 			if err != nil {
 				log.Println("unpackBodyConnect err", err)
 				return
@@ -254,7 +254,7 @@ func (h *tunServerHandler) ServeTun(ctx context.Context, r io.Reader, w io.Write
 			}()
 		case CmdSend:
 			connID, data, err := unpackBodySend(tunr)
-			log.Printf("CmdSend, connID %d:%d, %d bytes", tunID, connID, len(data))
+			log.Printf("Read CmdSend, connID %d:%d, %d bytes", tunID, connID, len(data))
 			if err != nil {
 				log.Println("unpackBodySend err", err)
 				return
@@ -267,7 +267,7 @@ func (h *tunServerHandler) ServeTun(ctx context.Context, r io.Reader, w io.Write
 			v.(*endpointConnData).writeCh <- data
 		case CmdClose:
 			connID, err := unpackBodyClose(tunr)
-			log.Printf("CmdClose, connID %d:%d,", tunID, connID)
+			log.Printf("Read CmdClose, connID %d:%d,", tunID, connID)
 			if err != nil {
 				log.Println("unpackBodyClose err", err)
 				return

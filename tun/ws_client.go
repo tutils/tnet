@@ -7,6 +7,8 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+var _ Client = &wsClient{}
+
 type wsClient struct {
 	opts ClientOptions
 	conn *websocket.Conn
