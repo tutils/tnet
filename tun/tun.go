@@ -14,3 +14,6 @@ type Addr interface {
 type Handler interface {
 	ServeTun(ctx context.Context, r io.Reader, w io.Writer)
 }
+
+// TunIDContextKey is context key of tunID
+type TunIDContextKey struct{}

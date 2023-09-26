@@ -5,8 +5,3 @@ type Server interface {
 	Handler() Handler
 	ListenAndServe() error
 }
-
-// default server
-var (
-	NewServer = newWsServer
-)

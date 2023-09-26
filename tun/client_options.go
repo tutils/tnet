@@ -2,9 +2,8 @@ package tun
 
 // ClientOptions is client options
 type ClientOptions struct {
-	addr    string
-	handler Handler
-	period  int
+	Address string
+	Handler Handler
 }
 
 // ClientOption is option setter for client
@@ -15,14 +14,14 @@ var (
 	DefaultConnectAddress = "ws://127.0.0.1:8080/stream"
 )
 
-func newClientOptions(opts ...ClientOption) *ClientOptions {
+func NewClientOptions(opts ...ClientOption) *ClientOptions {
 	opt := &ClientOptions{}
 	for _, o := range opts {
 		o(opt)
 	}
 
-	if opt.addr == "" {
-		opt.addr = DefaultConnectAddress
+	if opt.Address == "" {
+		opt.Address = DefaultConnectAddress
 	}
 
 	return opt
@@ -31,13 +30,13 @@ func newClientOptions(opts ...ClientOption) *ClientOptions {
 // WithConnectAddress sets client connect address opt
 func WithConnectAddress(addr string) ClientOption {
 	return func(opts *ClientOptions) {
-		opts.addr = addr
+		opts.Address = addr
 	}
 }
 
 // WithClientHandler sets tunnel handler opt
 func WithClientHandler(h Handler) ClientOption {
 	return func(opts *ClientOptions) {
-		opts.handler = h
+		opts.Handler = h
 	}
 }

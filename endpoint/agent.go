@@ -1,4 +1,4 @@
-package proxy
+package endpoint
 
 import (
 	"bytes"
@@ -14,32 +14,32 @@ import (
 	"github.com/tutils/tnet/tun"
 )
 
-type endpointConnDataKey struct{}
+type agentConnDataKey struct{}
 
-type endpointConnData struct {
+type agentConnData struct {
 	tunID   int64
 	connID  int64
 	writeCh chan []byte
 	closeCh chan struct{}
 }
 
-// endpointHandler
-type endpointHandler struct {
+// agentTCPHandler
+type agentTCPHandler struct {
 	tunw    io.Writer // SyncWriter
 	connMap *sync.Map
 }
 
-func (e *endpointHandler) ServeTCP(ctx context.Context, conn tcp.Conn) {
+func (e *agentTCPHandler) ServeConn(ctx context.Context, conn tcp.Conn) {
 	connr := conn.Reader()
 	tunw := e.tunw
 	connMap := e.connMap
 
-	connData := ctx.Value(endpointConnDataKey{}).(*endpointConnData)
+	connData := ctx.Value(agentConnDataKey{}).(*agentConnData)
 	tunID := connData.tunID
 	connID := connData.connID
 	connMap.Store(connID, connData)
-	log.Printf("new endpoint connection, connID %d:%d", tunID, connID)
-	defer log.Printf("endpoint connection closed, connID %d:%d", tunID, connID)
+	log.Printf("new agent connection, connID %d:%d", tunID, connID)
+	defer log.Printf("agent connection closed, connID %d:%d", tunID, connID)
 
 	tunwbuf := &bytes.Buffer{} // TODO: use pool
 	if err := packHeader(tunwbuf, CmdConnectResult); err != nil {
@@ -149,7 +149,7 @@ func (h *tunServerHandler) ServeTun(ctx context.Context, r io.Reader, w io.Write
 	log.Println("new tun connection")
 	defer log.Println("tun connection closed")
 
-	tunID := ctx.Value(tun.ConnIDContextKey{}).(int64)
+	tunID := ctx.Value(tun.TunIDContextKey{}).(int64)
 
 	// new tun connection
 	var tunr io.Reader
@@ -160,7 +160,7 @@ func (h *tunServerHandler) ServeTun(ctx context.Context, r io.Reader, w io.Write
 	}
 
 	// recv config
-	cmd, err := unpackHeader(tunr)
+	_, cmd, err := unpackHeader(tunr)
 	if err != nil {
 		log.Println("unpackHeader err", err)
 		return
@@ -200,21 +200,21 @@ func (h *tunServerHandler) ServeTun(ctx context.Context, r io.Reader, w io.Write
 
 	var connMap sync.Map
 
-	tcph := &endpointHandler{
+	tcph := &agentTCPHandler{
 		tunw:    tunw,
 		connMap: &connMap,
 	}
 
 	c := tcp.NewClient(
 		tcp.WithConnectAddress(connectAddr),
-		tcp.WithClientHandler(tcp.NewRawTCPConnHandler(tcph)),
+		tcp.WithClientHandler(tcph),
 		tcp.WithClientKeepAlivePeriod(time.Second*15),
 		tcp.WithClientKeepAliveCount(3),
 	)
 	defer c.Shutdown(context.Background())
 
 	for {
-		cmd, err := unpackHeader(tunr)
+		_, cmd, err := unpackHeader(tunr)
 		if err != nil {
 			log.Println("unpackHeader err", err)
 			return
@@ -228,13 +228,13 @@ func (h *tunServerHandler) ServeTun(ctx context.Context, r io.Reader, w io.Write
 				return
 			}
 			ctx := context.Background()
-			data := &endpointConnData{
+			data := &agentConnData{
 				tunID:   tunID,
 				connID:  connID,
 				writeCh: make(chan []byte, 1<<8),
 				closeCh: make(chan struct{}),
 			}
-			ctx = context.WithValue(ctx, endpointConnDataKey{}, data)
+			ctx = context.WithValue(ctx, agentConnDataKey{}, data)
 			go func() {
 				if err := c.DialAndServe(ctx); err != nil {
 					tunwbuf.Reset()
@@ -264,7 +264,7 @@ func (h *tunServerHandler) ServeTun(ctx context.Context, r io.Reader, w io.Write
 				log.Printf("connID %d:%d not found", tunID, connID)
 				break // ignore
 			}
-			v.(*endpointConnData).writeCh <- data
+			v.(*agentConnData).writeCh <- data
 		case CmdClose:
 			connID, err := unpackBodyClose(tunr)
 			log.Printf("Read CmdClose, connID %d:%d,", tunID, connID)
@@ -277,33 +277,33 @@ func (h *tunServerHandler) ServeTun(ctx context.Context, r io.Reader, w io.Write
 				log.Printf("connID %d:%d not found", tunID, connID)
 				break // ignore
 			}
-			close(v.(*endpointConnData).closeCh)
+			close(v.(*agentConnData).closeCh)
 		}
 	}
 }
 
-// NewTunServerHandler create a new tunnel handler for endpoint
+// NewTunServerHandler create a new tunnel handler for agent
 func NewTunServerHandler() tun.Handler {
 	return &tunServerHandler{}
 }
 
-// Endpoint for connecting remote tcp server
-type Endpoint struct {
-	opts EndpointOptions
+// Agent for connecting remote tcp server
+type Agent struct {
+	opts AgentOptions
 }
 
-// ListenAndServe starts endpoint
-func (p *Endpoint) ListenAndServe() error {
+// ListenAndServe starts agent
+func (p *Agent) ListenAndServe() error {
 	log.Println("start tun server")
 	defer log.Println("tun server exit")
 	return p.opts.tun.ListenAndServe()
 }
 
-// NewEndpoint create a new Endpoint
-func NewEndpoint(opts ...EndpointOption) *Endpoint {
-	opt := newEndpointOptions(opts...)
+// NewAgent create a new agent
+func NewAgent(opts ...AgentOption) *Agent {
+	opt := newAgentOptions(opts...)
 
-	p := &Endpoint{
+	p := &Agent{
 		opts: *opt,
 	}
 

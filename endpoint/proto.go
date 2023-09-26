@@ -1,4 +1,4 @@
-package proxy
+package endpoint
 
 import (
 	"encoding/binary"
@@ -19,13 +19,30 @@ const (
 	CmdClose
 )
 
+var seq int16 = 0
+
 func packHeader(w io.Writer, cmd Cmd) error {
-	return binary.Write(w, binary.BigEndian, cmd)
+	seq++
+	err := binary.Write(w, binary.BigEndian, seq)
+	if err != nil {
+		return err
+	}
+	// fmt.Println("@@packHeader: seq", seq)
+	err = binary.Write(w, binary.BigEndian, cmd)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-func unpackHeader(r io.Reader) (cmd Cmd, err error) {
+func unpackHeader(r io.Reader) (seq int16, cmd Cmd, err error) {
+	err = binary.Read(r, binary.BigEndian, &seq)
+	// fmt.Println("@@unpackHeader: seq", seq)
+	if err != nil {
+		return seq, cmd, err
+	}
 	err = binary.Read(r, binary.BigEndian, &cmd)
-	return cmd, err
+	return seq, cmd, err
 }
 
 func packBodyConfig(w io.Writer, connectAddr string) error {
@@ -90,8 +107,11 @@ func packBodyConnectResult(w io.Writer, connID int64, connectResult error) error
 
 func unpackBodyConnectResult(r io.Reader) (connID int64, connectResult error, err error) {
 	err = binary.Read(r, binary.BigEndian, &connID)
+	if err != nil {
+		return connID, connectResult, err
+	}
 	var n int16
-	if err := binary.Read(r, binary.BigEndian, &n); err != nil {
+	if err = binary.Read(r, binary.BigEndian, &n); err != nil {
 		return connID, connectResult, err
 	}
 	if n > 0 {
@@ -105,6 +125,7 @@ func unpackBodyConnectResult(r io.Reader) (connID int64, connectResult error, er
 }
 
 func packBodySend(w io.Writer, connID int64, data []byte) error {
+	// fmt.Println("@@packBodySend: connID", connID, "dataLen", len(data))
 	if err := binary.Write(w, binary.BigEndian, connID); err != nil {
 		return err
 	}
@@ -125,6 +146,7 @@ func unpackBodySend(r io.Reader) (connID int64, data []byte, err error) {
 	if err := binary.Read(r, binary.BigEndian, &n); err != nil {
 		return connID, data, err
 	}
+	// fmt.Println("@@unpackBodySend: connID", connID, "dataLen", n)
 	data = make([]byte, n)
 	if err := binary.Read(r, binary.BigEndian, data); err != nil {
 		return connID, data, err

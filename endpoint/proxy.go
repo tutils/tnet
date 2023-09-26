@@ -1,4 +1,4 @@
-package proxy
+package endpoint
 
 import (
 	"bytes"
@@ -67,15 +67,15 @@ type proxyConnData struct {
 	closeCh      chan struct{}
 }
 
-// proxyHandler
-type proxyHandler struct {
+// proxyTCPHandler
+type proxyTCPHandler struct {
 	tunw    io.Writer // SyncWriter
 	tunID   int64
 	connMap *sync.Map
 }
 
-// ServeTCP called from multiple goroutines
-func (h *proxyHandler) ServeTCP(ctx context.Context, conn tcp.Conn) {
+// ServeConn called from multiple goroutines
+func (h *proxyTCPHandler) ServeConn(ctx context.Context, conn tcp.Conn) {
 	// new proxy connection
 	connr := conn.Reader()
 	tunw := h.tunw
@@ -252,7 +252,7 @@ func (h *tunClientHandler) ServeTun(ctx context.Context, r io.Reader, w io.Write
 	}
 
 	// recv tunID
-	cmd, err := unpackHeader(tunr)
+	_, cmd, err := unpackHeader(tunr)
 	if err != nil {
 		log.Println("unpackHeader err", err)
 		return
@@ -267,7 +267,7 @@ func (h *tunClientHandler) ServeTun(ctx context.Context, r io.Reader, w io.Write
 		return
 	}
 
-	tcph := &proxyHandler{
+	tcph := &proxyTCPHandler{
 		tunw:    tunw,
 		tunID:   tunID,
 		connMap: &connMap,
@@ -277,7 +277,7 @@ func (h *tunClientHandler) ServeTun(ctx context.Context, r io.Reader, w io.Write
 
 	s := tcp.NewServer(
 		tcp.WithListenAddress(h.proxyAddr),
-		tcp.WithServerHandler(tcp.NewRawTCPConnHandler(tcph)),
+		tcp.WithServerHandler(tcph),
 		tcp.WithServerConnContextFunc(func(ctx context.Context, c net.Conn) context.Context {
 			connID++
 			data := &proxyConnData{
@@ -306,7 +306,7 @@ func (h *tunClientHandler) ServeTun(ctx context.Context, r io.Reader, w io.Write
 		default:
 		}
 
-		cmd, err := unpackHeader(tunr)
+		_, cmd, err := unpackHeader(tunr)
 		if err != nil {
 			log.Println("unpackHeader err", err)
 			return

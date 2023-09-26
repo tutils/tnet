@@ -1,10 +1,11 @@
-package proxy
+package endpoint
 
 import (
 	"github.com/tutils/tnet/counter"
 	"github.com/tutils/tnet/crypt"
 	"github.com/tutils/tnet/crypt/xor"
 	"github.com/tutils/tnet/tun"
+	"github.com/tutils/tnet/tun/websocket"
 )
 
 // ProxyOptions is options of proxy
@@ -22,7 +23,7 @@ type ProxyOption func(opts *ProxyOptions)
 
 // default proxy options
 var (
-	DefaultTunClient      = tun.NewClient()
+	DefaultTunClient      = websocket.NewClient()
 	DefaultTunCrypt       = xor.NewCrypt(975135745)
 	DefaultListenAddress  = ":"
 	DefaultConnectAddress = ":3218"

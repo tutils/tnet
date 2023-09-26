@@ -6,8 +6,10 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/tutils/tnet/counter/period"
-	"github.com/tutils/tnet/proxy"
+	"github.com/tutils/tnet/crypt/xor"
+	"github.com/tutils/tnet/endpoint"
 	"github.com/tutils/tnet/tun"
+	"github.com/tutils/tnet/tun/mqtt"
 )
 
 var (
@@ -23,18 +25,18 @@ var proxyCmd = &cobra.Command{
 	Long: `Start TCP tunnel proxy, For example:
   tnet proxy --listen=0.0.0.0:56080 --connect=127.0.0.1:3128 --tunnel-connect=ws://123.45.67.89:8080/stream --crypt-key=816559`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		p := proxy.NewProxy(
-			proxy.WithTunClient(
-				tun.NewClient(
+		p := endpoint.NewProxy(
+			endpoint.WithTunClient(
+				mqtt.NewClient(
 					tun.WithConnectAddress(tunClientConnectAddress),
-					tun.WithClientHandler(proxy.NewTunClientHandler()),
+					tun.WithClientHandler(endpoint.NewTunClientHandler()),
 				),
 			),
-			proxy.WithListenAddress(listenAddress),
-			proxy.WithConnectAddress(connectAddress),
-			proxy.WithTunClientCrypt(proxy.DefaultTunCrypt),
-			proxy.WithDownloadCounter(period.NewPeriodCounter(time.Second)),
-			proxy.WithUploadCounter(period.NewPeriodCounter(time.Second)),
+			endpoint.WithListenAddress(listenAddress),
+			endpoint.WithConnectAddress(connectAddress),
+			endpoint.WithTunClientCrypt(xor.NewCrypt(xorCryptSeed)),
+			endpoint.WithDownloadCounter(period.NewPeriodCounter(time.Second)),
+			endpoint.WithUploadCounter(period.NewPeriodCounter(time.Second)),
 		)
 
 		// backoff

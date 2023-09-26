@@ -1,4 +1,4 @@
-package tun
+package websocket
 
 import (
 	"bytes"
@@ -10,31 +10,32 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/tutils/tnet/tun"
 )
 
-type wsAddr struct {
+type addr struct {
 	url *url.URL
 }
 
-func (a *wsAddr) String() string {
+func (a *addr) String() string {
 	return a.url.String()
 }
 
-func (a *wsAddr) host() string {
+func (a *addr) host() string {
 	return a.url.Host
 }
 
-func (a *wsAddr) uri() string {
+func (a *addr) uri() string {
 	return a.url.RequestURI()
 }
 
-func newWsAddr(rawURL string) *wsAddr {
+func newAddr(rawURL string) *addr {
 	u, err := url.Parse(rawURL)
 	if err != nil {
 		return nil
 	}
 
-	return &wsAddr{
+	return &addr{
 		url: u,
 	}
 }
@@ -51,24 +52,24 @@ var (
 
 var eofReader = bytes.NewReader(nil)
 
-type wsReader struct {
+type reader struct {
 	conn *websocket.Conn
 	r    io.Reader
 }
 
-func (wsr *wsReader) Read(p []byte) (n int, err error) {
-	n, err = wsr.r.Read(p)
+func (r *reader) Read(p []byte) (n int, err error) {
+	n, err = r.r.Read(p)
 	if err == io.EOF {
 		for {
 			var typ int
-			typ, wsr.r, err = wsr.conn.NextReader()
+			typ, r.r, err = r.conn.NextReader()
 			if err != nil {
 				return 0, err
 			}
 			if typ == websocket.BinaryMessage {
-				return wsr.r.Read(p)
+				return r.r.Read(p)
 			}
-			if _, err := io.ReadAll(wsr.r); err != nil {
+			if _, err := io.ReadAll(r.r); err != nil {
 				return 0, err
 			}
 		}
@@ -76,83 +77,81 @@ func (wsr *wsReader) Read(p []byte) (n int, err error) {
 	return n, err
 }
 
-func newWsReader(conn *websocket.Conn) io.Reader {
-	return &wsReader{
+func newReader(conn *websocket.Conn) *reader {
+	return &reader{
 		conn: conn,
 		r:    eofReader,
 	}
 }
 
-type wsWriter struct {
+type writer struct {
 	conn *websocket.Conn
 }
 
-func (wsw *wsWriter) Write(p []byte) (n int, err error) {
-	err = wsw.conn.WriteMessage(websocket.BinaryMessage, p)
+func (w *writer) Write(p []byte) (n int, err error) {
+	err = w.conn.WriteMessage(websocket.BinaryMessage, p)
 	return len(p), err
 }
 
-func newWsWriter(conn *websocket.Conn) io.Writer {
-	return &wsWriter{
+func newWriter(conn *websocket.Conn) *writer {
+	return &writer{
 		conn: conn,
 	}
 }
 
-var _ Server = &wsServer{}
+var _ tun.Server = &server{}
 
-type wsServer struct {
-	opts ServerOptions
+type server struct {
+	opts tun.ServerOptions
 	srv  *http.Server
 }
 
-func (s *wsServer) Handler() Handler {
-	return s.opts.handler
+func (s *server) Handler() tun.Handler {
+	return s.opts.Handler
 }
 
-func (s *wsServer) serveHTTP(w http.ResponseWriter, r *http.Request) {
+// ServeHTTP implements http.Handler
+func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return
 	}
 	defer conn.Close()
-	if h := s.opts.handler; h != nil {
-		wsr := newWsReader(conn)
-		wsw := newWsWriter(conn)
+	if h := s.Handler(); h != nil {
+		tunr := newReader(conn)
+		tunw := newWriter(conn)
 		ctx := r.Context()
 
 		done := make(chan struct{})
 		go startPing(conn, done)
 
-		h.ServeTun(ctx, wsr, wsw)
+		h.ServeTun(ctx, tunr, tunw)
 
 		close(done)
 	}
 }
 
-func (s *wsServer) ListenAndServe() error {
+func (s *server) ListenAndServe() error {
 	return s.srv.ListenAndServe()
 }
 
-// ConnIDContextKey is context key of connID
-type ConnIDContextKey struct{}
+func NewServer(opts ...tun.ServerOption) tun.Server {
+	opt := tun.NewServerOptions(opts...)
 
-func newWsServer(opts ...ServerOption) Server {
-	opt := newServerOptions(opts...)
-
-	s := &wsServer{
+	s := &server{
 		opts: *opt,
 	}
 
-	addr := newWsAddr(opt.addr)
+	addr := newAddr(opt.Address)
 	mux := http.NewServeMux()
-	mux.HandleFunc(addr.uri(), s.serveHTTP)
-	var connID int64
+	mux.Handle(addr.uri(), s)
+	var tunID int64
 	srv := &http.Server{
 		Addr:    addr.host(),
 		Handler: mux,
 		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
-			connID++
-			return context.WithValue(ctx, ConnIDContextKey{}, connID)
+			tunID++
+			return context.WithValue(ctx, tun.TunIDContextKey{}, tunID)
 		},
 	}
 	s.srv = srv

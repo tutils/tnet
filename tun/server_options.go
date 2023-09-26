@@ -2,8 +2,8 @@ package tun
 
 // ServerOptions is server options
 type ServerOptions struct {
-	addr    string
-	handler Handler
+	Address string
+	Handler Handler
 }
 
 // ServerOption is option setter for server
@@ -14,14 +14,14 @@ var (
 	DefaultListenAddress = "ws://0.0.0.0:8080/stream"
 )
 
-func newServerOptions(opts ...ServerOption) *ServerOptions {
+func NewServerOptions(opts ...ServerOption) *ServerOptions {
 	opt := &ServerOptions{}
 	for _, o := range opts {
 		o(opt)
 	}
 
-	if opt.addr == "" {
-		opt.addr = DefaultListenAddress
+	if opt.Address == "" {
+		opt.Address = DefaultListenAddress
 	}
 
 	return opt
@@ -30,13 +30,13 @@ func newServerOptions(opts ...ServerOption) *ServerOptions {
 // WithListenAddress sets server listen address opt
 func WithListenAddress(addr string) ServerOption {
 	return func(opts *ServerOptions) {
-		opts.addr = addr
+		opts.Address = addr
 	}
 }
 
 // WithServerHandler sets tunnel handler opt
 func WithServerHandler(h Handler) ServerOption {
 	return func(opts *ServerOptions) {
-		opts.handler = h
+		opts.Handler = h
 	}
 }
