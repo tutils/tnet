@@ -91,7 +91,7 @@ func (cli *Client) DialAndServe(ctx context.Context) error {
 	defer cli.trackDialer(d, false)
 
 	rw, err := d.DialContext(ctx, "tcp", addr)
-	if err != nil {
+	if err != nil || rw == nil {
 		select {
 		case <-cli.getDoneChan():
 			return ErrClientClosed
