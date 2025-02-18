@@ -5,6 +5,9 @@
 TARGET="tnet"
 
 export CGO_ENABLED="0"
+
+go mod tidy
+
 export GOARCH="amd64"
 
 export GOOS="linux"

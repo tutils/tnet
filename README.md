@@ -3,7 +3,7 @@
 [![Windows](https://img.shields.io/badge/-Windows-blue?logo=windows)](https://github.com/tutils/tnet/releases)
 [![MacOS](https://img.shields.io/badge/-MacOS-black?logo=apple)](https://github.com/tutils/tnet/releases)
 [![Linux](https://img.shields.io/badge/-Linux-purple?logo=ubuntu)](https://github.com/tutils/tnet/releases)
-<br/>
+  
 [![License](https://img.shields.io/:license-apache-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Build Status](https://travis-ci.com/tutils/tnet.svg?branch=master)](https://travis-ci.com/tutils/tnet)
 [![Go Report Card](https://goreportcard.com/badge/github.com/tutils/tnet)](https://goreportcard.com/report/github.com/tutils/tnet)
@@ -14,9 +14,9 @@
 
 - **tcp** - TCP开发工具包。TCP服务器和客户端。
 - **tun** - 数据隧道。任何可进行数据通信的逻辑，将在这里被抽象为Reader和Writer，默认管道通信协议为websocket。
-- **proxy** - 代理。利用隧道将远端的TCP服务代理到本地。
+- **endpoint** - 端。端到端通过隧道通信。默认的隧道处理器可将远端的TCP服务代理到本地。
 - **crypt** - 加密。通过修饰实现Reader或Writer的加密。
-- **cmd** - 命令解析。目前提供了两种子命令proxy和endpoint
+- **cmd** - 命令解析。目前提供了两种子命令proxy和agent
 - **tnet** - 命令行界面。
 
 ## 开发
@@ -95,20 +95,20 @@ func main() {
             tun.NewClient(
                 // 隧道连接地址
                 tun.WithConnectAddress("ws://127.0.0.1:8080/stream"),
-                // 隧道连接处理器
-                tun.WithClientHandler(proxy.NewTunClientHandler()),
             ),
         ),
+        // 隧道连接处理器
+        tun.WithTunHandlerNewer(proxy.NewTCPProxyTunHandler),
         // 本地代理监听的地址
         proxy.WithListenAddress(":1022"),
         // 远端代理访问的地址
         proxy.WithConnectAddress("127.0.0.1:22"),
         // 代理所用的数据隧道将会被加密
-        proxy.WithTunClientCrypt(xor.NewCrypt(1234)),
+        proxy.WithTunCrypt(xor.NewCrypt(1234)),
     )
     // 启动代理
-    // 当然如果需要提供完整TCP代理服务，还需要在远端启动一个endpoint
-    if err := p.DialAndServe(); err != nil {
+    // 当然如果需要提供完整TCP代理服务，还需要在远端启动一个agent
+    if err := p.Serve(); err != nil {
         log.Fatalln(err)
     }
 }
@@ -118,7 +118,7 @@ func main() {
 
 tnet通过接口化的设计以及创建对象时的选项化配置实现的组件插件化特性。
 如果需要需要替换tnet中的某一个组件，可以对接口进行自行实现，并在创建持有该组件的对象时通过选项进行设置。
-例如可以通过实现tnet/tun中的Server和Client接口，实现对proxy/endpoint中数据隧道的替换；通过实现tnet/crypt中的Crypt接口以支持不同的加密方案；等等。
+例如可以通过实现tnet/tun中的Server和Client接口，实现对proxy/agent中数据隧道的替换；通过实现tnet/crypt中的Crypt接口以支持不同的加密方案；等等。
 
 ```go
 p := proxy.NewProxy(
@@ -132,7 +132,7 @@ p := proxy.NewProxy(
         ...
     ),
     // 对解密协议进行替换
-    proxy.WithTunClientCrypt(aes.NewCrypt("akd8f=3ng0$5a@e9")),
+    proxy.WithTunCrypt(aes.NewCrypt("akd8f=3ng0$5a@e9")),
     ...
 )
 
