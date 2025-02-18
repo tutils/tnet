@@ -12,7 +12,10 @@ import (
 var (
 	cfgFile string
 
-	xorCryptSeed int64
+	// Shared flags
+	xorCryptSeed            int64
+	tunServerListenAddress  string
+	tunClientConnectAddress string
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -21,9 +24,9 @@ var rootCmd = &cobra.Command{
 	Short: "Network utils.",
 	Long: `Network utils.
 Repo: https://github.com/tutils/tnet
-Start proxy or endpoint to setup a TCP tunnel, For example:
+Start proxy or agent to setup a TCP tunnel, For example:
   tnet proxy --listen=0.0.0.0:56080 --connect=127.0.0.1:3128 --tunnel-connect=ws://123.45.67.89:8080/stream --crypt-key=816559
-  tnet endpoint --tunnel-listen=ws://0.0.0.0:8080/stream --crypt-key=816559`,
+  tnet agent --tunnel-listen=ws://0.0.0.0:8080/stream --crypt-key=816559`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	//	Run: func(cmd *cobra.Command, args []string) { },

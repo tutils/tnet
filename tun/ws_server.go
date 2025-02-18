@@ -105,32 +105,41 @@ type wsServer struct {
 	srv  *http.Server
 }
 
-func (s *wsServer) Handler() Handler {
-	return s.opts.handler
-}
-
-func (s *wsServer) serveHTTP(w http.ResponseWriter, r *http.Request) {
+func (s *wsServer) serveHTTP(h Handler, w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return
 	}
 	defer conn.Close()
-	if h := s.opts.handler; h != nil {
-		wsr := newWsReader(conn)
-		wsw := newWsWriter(conn)
-		ctx := r.Context()
 
-		done := make(chan struct{})
-		go startPing(conn, done)
+	wsr := newWsReader(conn)
+	wsw := newWsWriter(conn)
+	ctx := r.Context()
 
-		h.ServeTun(ctx, wsr, wsw)
+	done := make(chan struct{})
+	go startPing(conn, done)
 
-		close(done)
-	}
+	h.ServeTun(ctx, wsr, wsw)
+
+	close(done)
 }
 
-func (s *wsServer) ListenAndServe() error {
-	return s.srv.ListenAndServe()
+func (s *wsServer) ListenAndServe(h Handler) error {
+	addr := newWsAddr(s.opts.addr)
+	mux := http.NewServeMux()
+	mux.HandleFunc(addr.uri(), func(w http.ResponseWriter, r *http.Request) {
+		s.serveHTTP(h, w, r)
+	})
+	var connID int64
+	srv := &http.Server{
+		Addr:    addr.host(),
+		Handler: mux,
+		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
+			connID++
+			return context.WithValue(ctx, ConnIDContextKey{}, connID)
+		},
+	}
+	return srv.ListenAndServe()
 }
 
 // ConnIDContextKey is context key of connID
@@ -142,21 +151,6 @@ func newWsServer(opts ...ServerOption) Server {
 	s := &wsServer{
 		opts: *opt,
 	}
-
-	addr := newWsAddr(opt.addr)
-	mux := http.NewServeMux()
-	mux.HandleFunc(addr.uri(), s.serveHTTP)
-	var connID int64
-	srv := &http.Server{
-		Addr:    addr.host(),
-		Handler: mux,
-		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
-			connID++
-			return context.WithValue(ctx, ConnIDContextKey{}, connID)
-		},
-	}
-	s.srv = srv
-
 	return s
 }
 
