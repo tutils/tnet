@@ -16,7 +16,7 @@
 - **tun** - 数据隧道。任何可进行数据通信的逻辑，将在这里被抽象为Reader和Writer，默认管道通信协议为websocket。
 - **proxy** - 代理。利用隧道将远端的TCP服务代理到本地。
 - **crypt** - 加密。通过修饰实现Reader或Writer的加密。
-- **cmd** - 命令解析。目前提供了两种子命令proxy和endpoint
+- **cmd** - 命令解析。目前提供了两种子命令proxy和agent
 - **tnet** - 命令行界面。
 
 ## 开发
@@ -107,7 +107,7 @@ func main() {
         proxy.WithTunClientCrypt(xor.NewCrypt(1234)),
     )
     // 启动代理
-    // 当然如果需要提供完整TCP代理服务，还需要在远端启动一个endpoint
+    // 当然如果需要提供完整TCP代理服务，还需要在远端启动一个agent
     if err := p.DialAndServe(); err != nil {
         log.Fatalln(err)
     }
@@ -118,7 +118,7 @@ func main() {
 
 tnet通过接口化的设计以及创建对象时的选项化配置实现的组件插件化特性。
 如果需要需要替换tnet中的某一个组件，可以对接口进行自行实现，并在创建持有该组件的对象时通过选项进行设置。
-例如可以通过实现tnet/tun中的Server和Client接口，实现对proxy/endpoint中数据隧道的替换；通过实现tnet/crypt中的Crypt接口以支持不同的加密方案；等等。
+例如可以通过实现tnet/tun中的Server和Client接口，实现对proxy/agent中数据隧道的替换；通过实现tnet/crypt中的Crypt接口以支持不同的加密方案；等等。
 
 ```go
 p := proxy.NewProxy(

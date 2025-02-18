@@ -3,7 +3,6 @@ package tun
 // ClientOptions is client options
 type ClientOptions struct {
 	addr    string
-	handler Handler
 	period  int
 }
 
@@ -24,7 +23,6 @@ func newClientOptions(opts ...ClientOption) *ClientOptions {
 	if opt.addr == "" {
 		opt.addr = DefaultConnectAddress
 	}
-
 	return opt
 }
 
@@ -32,12 +30,5 @@ func newClientOptions(opts ...ClientOption) *ClientOptions {
 func WithConnectAddress(addr string) ClientOption {
 	return func(opts *ClientOptions) {
 		opts.addr = addr
-	}
-}
-
-// WithClientHandler sets tunnel handler opt
-func WithClientHandler(h Handler) ClientOption {
-	return func(opts *ClientOptions) {
-		opts.handler = h
 	}
 }

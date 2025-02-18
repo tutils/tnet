@@ -2,8 +2,7 @@ package tun
 
 // Server is tunnel server
 type Server interface {
-	Handler() Handler
-	ListenAndServe() error
+	ListenAndServe(h Handler) error
 }
 
 // default server

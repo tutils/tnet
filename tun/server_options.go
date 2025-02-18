@@ -2,8 +2,7 @@ package tun
 
 // ServerOptions is server options
 type ServerOptions struct {
-	addr    string
-	handler Handler
+	addr string
 }
 
 // ServerOption is option setter for server
@@ -23,7 +22,6 @@ func newServerOptions(opts ...ServerOption) *ServerOptions {
 	if opt.addr == "" {
 		opt.addr = DefaultListenAddress
 	}
-
 	return opt
 }
 
@@ -31,12 +29,5 @@ func newServerOptions(opts ...ServerOption) *ServerOptions {
 func WithListenAddress(addr string) ServerOption {
 	return func(opts *ServerOptions) {
 		opts.addr = addr
-	}
-}
-
-// WithServerHandler sets tunnel handler opt
-func WithServerHandler(h Handler) ServerOption {
-	return func(opts *ServerOptions) {
-		opts.handler = h
 	}
 }
