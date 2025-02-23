@@ -8,22 +8,24 @@
 [![Build Status](https://travis-ci.com/tutils/tnet.svg?branch=master)](https://travis-ci.com/tutils/tnet)
 [![Go Report Card](https://goreportcard.com/badge/github.com/tutils/tnet)](https://goreportcard.com/report/github.com/tutils/tnet)
 
-插件化架构的网络开发工具包。
+[中文](README_zh.md)
 
-## 特性
+A plugin-based network development toolkit.
 
-- **tcp** - TCP开发工具包。TCP服务器和客户端。
-- **tun** - 数据隧道。任何可进行数据通信的逻辑，将在这里被抽象为Reader和Writer，默认管道通信协议为websocket。
-- **endpoint** - 端。端到端通过隧道通信。默认的隧道处理器可将远端的TCP服务代理到本地。
-- **crypt** - 加密。通过修饰实现Reader或Writer的加密。
-- **cmd** - 命令解析。目前提供了两种子命令proxy和agent
-- **tnet** - 命令行界面。
+## Features
 
-## 开发
+- **tcp** - TCP development toolkit. TCP server and client.
+- **tun** - Data tunnel. Any logic that can perform data communication will be abstracted here as Reader and Writer, with websocket as the default pipeline communication protocol.
+- **endpoint** - Endpoint. End-to-end communication through tunnels. The default tunnel handler can proxy remote TCP services to local.
+- **crypt** - Encryption. Implement encryption by decorating Reader or Writer.
+- **cmd** - Command parsing. Currently provides two subcommands: proxy and agent.
+- **tnet** - Command line interface.
 
-基于插件化的架构设计，所以主要结构在创建的时候各种选项都是可定制的。
+## Development
 
-- **样例一** - 创建一个TCP服务器：
+Based on a plugin-based architecture design, the main structures are customizable with various options when created.
+
+- **Example 1** - Create a TCP server:
 
 ```go
 package main
@@ -42,8 +44,8 @@ type handler struct {
 type connIDKey struct{}
 
 func (h *handler) ServeTCP(ctx context.Context, conn tcp.Conn) {
-    // 函数结束自动关闭和清理当前TCP连接
-    // 如果需要提供长连接服务，自行用循环结构进行控制
+    // The function automatically closes and cleans up the current TCP connection when it ends
+    // If you need to provide long connection service, use loop structure for control
     connID := ctx.Value(connIDkey{}).(int64)
     conn.Writer().Write([]byte(fmt.Sprintf("I'm %d", tunID, connID)))
 }
@@ -52,29 +54,29 @@ func main() {
     var connID int64 = 0
 
     h := &handler{}
-    // 新建一个服务器
+    // Create a new server
     srv := tcp.NewServer(
-        // 监听地址
+        // Listen address
         tcp.WithListenAddress(":8080"),
-        // 所采用的TCP连接处理器，可以根据要提供的TCP服务的性质选择合适的处理器。这里使用原始TCP处理器
+        // TCP connection handler to be used, choose appropriate handler based on the nature of TCP service to be provided. Here we use raw TCP handler
         tcp.WithServerHandler(tcp.NewRawTCPHandler(h)),
-        // 新连接接入时候的上下文钩子函数，这里给每个连接分配一个ID
+        // Context hook function for new connection access, here assigning an ID to each connection
         tcp.WithServerConnContextFunc(func(ctx context.Context, c net.Conn) context.Context {
             connID++
             return context.WithValue(ctx, connIDKey{}, connID)
         }),
     )
-    // 结束时优雅的关闭服务器
-    // 直到全部连接不在活跃时才会完成关闭操作，如果需要强行关闭可调用srv.Close()
+    // Gracefully close the server when finished
+    // Will not complete shutdown until all connections are no longer active, call srv.Close() if forced shutdown is needed
     defer srv.Shutdown(context.Background())
-    // 启动服务
+    // Start service
     if err := srv.ListenAndServe(); err != nil {
         log.Fatalln(err)
     }
 }
 ```
 
-- **样例二** - 创建一个本地代理：
+- **Example 2** - Create a local proxy:
 
 ```go
 package main
@@ -87,61 +89,60 @@ import (
 )
 
 func main() {
-    // 新建一个代理
+    // Create a new proxy
     p := proxy.NewProxy(
-        // 所采用的隧道客户端
+        // Tunnel client to be used
         proxy.WithTunClient(
-            // 新建一个默认隧道客户端
+            // Create a new default tunnel client
             tun.NewClient(
-                // 隧道连接地址
+                // Tunnel connection address
                 tun.WithConnectAddress("ws://127.0.0.1:8080/stream"),
             ),
         ),
-        // 隧道连接处理器
+        // Tunnel connection handler
         tun.WithTunHandlerNewer(proxy.NewTCPProxyTunHandler),
-        // 本地代理监听的地址
+        // Local proxy listen address
         proxy.WithListenAddress(":1022"),
-        // 远端代理访问的地址
+        // Remote proxy access address
         proxy.WithConnectAddress("127.0.0.1:22"),
-        // 代理所用的数据隧道将会被加密
+        // The data tunnel used by the proxy will be encrypted
         proxy.WithTunCrypt(xor.NewCrypt(1234)),
     )
-    // 启动代理
-    // 当然如果需要提供完整TCP代理服务，还需要在远端启动一个agent
+    // Start proxy
+    // Of course, to provide complete TCP proxy service, you also need to start an agent on the remote end
     if err := p.Serve(); err != nil {
         log.Fatalln(err)
     }
 }
 ```
 
-## 扩展
+## Extension
 
-tnet通过接口化的设计以及创建对象时的选项化配置实现的组件插件化特性。
-如果需要需要替换tnet中的某一个组件，可以对接口进行自行实现，并在创建持有该组件的对象时通过选项进行设置。
-例如可以通过实现tnet/tun中的Server和Client接口，实现对proxy/agent中数据隧道的替换；通过实现tnet/crypt中的Crypt接口以支持不同的加密方案；等等。
+tnet implements component plugin features through interface-based design and option-based configuration when creating objects.
+If you need to replace a component in tnet, you can implement the interface yourself and set it through options when creating objects that hold that component.
+For example, you can implement the Server and Client interfaces in tnet/tun to replace the data tunnel in proxy/agent; implement the Crypt interface in tnet/crypt to support different encryption schemes; and so on.
 
 ```go
 p := proxy.NewProxy(
     proxy.WithTunClient(
-        // 将隧道替换成redis方案(比如可通过pub/sub进行数据通信)
+        // Replace tunnel with redis solution (e.g., data communication through pub/sub)
         redis.NewClient(
-            // redis隧道的创建选项
+            // Creation options for redis tunnel
             redis.WithConfig(...),
             ...
         ),
         ...
     ),
-    // 对解密协议进行替换
+    // Replace decryption protocol
     proxy.WithTunCrypt(aes.NewCrypt("akd8f=3ng0$5a@e9")),
     ...
 )
-
 ```
 
-## 命令行界面
+## Command Line Interface
 
-详见 ```tnet --help```。
+See ```tnet --help``` for details.
 
-## 协议
+## License
 
-tnet已获得Apache 2.0许可。
+tnet is licensed under the Apache License 2.0.

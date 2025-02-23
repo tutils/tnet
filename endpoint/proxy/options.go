@@ -17,6 +17,7 @@ type Options struct {
 	connectAddr     string
 	downloadCounter counter.Counter
 	uploadCounter   counter.Counter
+	dumpDir         string
 }
 
 // Option is option setter for proxy
@@ -100,5 +101,12 @@ func WithDownloadCounter(counter counter.Counter) Option {
 func WithUploadCounter(counter counter.Counter) Option {
 	return func(opts *Options) {
 		opts.uploadCounter = counter
+	}
+}
+
+// WithDumpDir sets dump directory opt
+func WithDumpDir(dir string) Option {
+	return func(opts *Options) {
+		opts.dumpDir = dir
 	}
 }

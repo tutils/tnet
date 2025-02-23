@@ -345,8 +345,6 @@ type conn struct {
 	remoteAddr string
 	curState   struct{ atomic uint64 } // packed (unixtime<<8|uint8(ConnState))
 	onSetState func(ConnState)
-
-	mu sync.Mutex
 }
 
 func (c *conn) setState(state ConnState) {

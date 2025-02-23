@@ -53,6 +53,7 @@ var proxyCmd = &cobra.Command{
 			proxy.WithTunCrypt(xor.NewCrypt(xorCryptSeed)),
 			proxy.WithDownloadCounter(period.NewPeriodCounter(time.Second)),
 			proxy.WithUploadCounter(period.NewPeriodCounter(time.Second)),
+			proxy.WithDumpDir(dumpDir),
 		)
 
 		// backoff
@@ -78,6 +79,7 @@ var proxyCmd = &cobra.Command{
 var (
 	listenAddress  string
 	connectAddress string
+	dumpDir           string
 )
 
 func init() {
@@ -98,4 +100,5 @@ func init() {
 	flags.StringVarP(&tunClientConnectAddress, "tunnel-connect", "", "", "tunnel client connect address")
 	flags.StringVarP(&tunServerListenAddress, "tunnel-listen", "", "", "tunnel server listening address (for reverse mode)")
 	flags.Int64VarP(&xorCryptSeed, "crypt-key", "k", 98545715754651, "crypt key")
+	flags.StringVarP(&dumpDir, "dump-dir", "d", "", "dump traffic to files in this directory")
 }

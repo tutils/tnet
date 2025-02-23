@@ -8,6 +8,7 @@ import (
 	"log"
 	"math"
 	"net"
+	"os"
 	"sync"
 	"time"
 
@@ -65,6 +66,8 @@ type tcpConnData struct {
 	connectResCh chan error
 	writeCh      chan []byte
 	closeCh      chan struct{}
+	writeDump    io.WriteCloser
+	readDump     io.WriteCloser
 }
 
 // tcpHandler
@@ -72,6 +75,7 @@ type tcpHandler struct {
 	tunw    io.Writer // SyncWriter
 	tunID   int64
 	connMap *sync.Map
+	dumpDir string
 }
 
 // ServeTCP called from multiple goroutines
@@ -87,6 +91,35 @@ func (h *tcpHandler) ServeTCP(ctx context.Context, conn tcp.Conn) {
 	connMap.Store(connID, connData)
 	log.Printf("new proxy connection, connID %d:%d", h.tunID, connID)
 	defer log.Printf("proxy connection closed, connID %d:%d", h.tunID, connID)
+
+	// create dump files if dumpDir is set
+	if h.dumpDir != "" {
+		dumpPath := fmt.Sprintf("%s/%d/%d", h.dumpDir, h.tunID, connID)
+		if err := os.MkdirAll(dumpPath, 0755); err != nil {
+			log.Printf("create dump dir err: %v", err)
+			return
+		}
+		if writeDump, err := os.Create(fmt.Sprintf("%s/write.dmp", dumpPath)); err != nil {
+			log.Printf("create write dump file err: %v", err)
+			return
+		} else {
+			connData.writeDump = writeDump
+		}
+		if readDump, err := os.Create(fmt.Sprintf("%s/read.dmp", dumpPath)); err != nil {
+			log.Printf("create read dump file err: %v", err)
+			return
+		} else {
+			connData.readDump = readDump
+		}
+		defer func() {
+			if connData.writeDump != nil {
+				connData.writeDump.Close()
+			}
+			if connData.readDump != nil {
+				connData.readDump.Close()
+			}
+		}()
+	}
 
 	tunwbuf := &bytes.Buffer{} // TODO: use pool
 	if err := common.PackHeader(tunwbuf, common.CmdConnect); err != nil {
@@ -153,6 +186,11 @@ func (h *tcpHandler) ServeTCP(ctx context.Context, conn tcp.Conn) {
 					log.Println("write conn err", err)
 					return
 				}
+				if connData.writeDump != nil {
+					if _, err := connData.writeDump.Write(data); err != nil {
+						log.Printf("write dump file err: %v", err)
+					}
+				}
 			case <-connData.closeCh:
 				conn.CancelContext()
 				conn.AbortPendingRead()
@@ -167,8 +205,20 @@ func (h *tcpHandler) ServeTCP(ctx context.Context, conn tcp.Conn) {
 	for {
 		n, err := connr.Read(buf)
 		if err != nil {
-			log.Println("read conn err", err)
+			// check if connection is closed
+			select {
+			case <-connData.closeCh:
+				log.Printf("read conn abort: agent connection closed, connID %d:%d", h.tunID, connID)
+			default:
+				log.Printf("read conn err: %v, connID %d:%d", err, h.tunID, connID)
+			}
 			return
+		}
+
+		if connData.readDump != nil {
+			if _, err := connData.readDump.Write(buf[:n]); err != nil {
+				log.Printf("write dump file err: %v", err)
+			}
 		}
 
 		select {
@@ -267,6 +317,7 @@ func (h *proxyTunHandler) ServeTun(ctx context.Context, r io.Reader, w io.Writer
 		tunw:    tunw,
 		tunID:   tunID,
 		connMap: &connMap,
+		dumpDir: opts.dumpDir,
 	}
 
 	var connID int64

@@ -115,7 +115,13 @@ func (e *tcpHandler) ServeTCP(ctx context.Context, conn tcp.Conn) {
 	for {
 		n, err := connr.Read(buf)
 		if err != nil {
-			log.Println("read conn err", err)
+			// check if connection is closed
+			select {
+			case <-connData.closeCh:
+				log.Printf("read conn abort: proxy connection closed, connID %d:%d", tunID, connID)
+			default:
+				log.Printf("read conn err: %v, connID %d:%d", err, tunID, connID)
+			}
 			return
 		}
 
