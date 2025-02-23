@@ -5,7 +5,7 @@
 [![Linux](https://img.shields.io/badge/-Linux-purple?logo=ubuntu)](https://github.com/tutils/tnet/releases)
   
 [![License](https://img.shields.io/:license-apache-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Build Status](https://travis-ci.com/tutils/tnet.svg?branch=master)](https://travis-ci.com/tutils/tnet)
+[![Build Status](https://github.com/tutils/tnet/actions/workflows/build.yml/badge.svg)](https://github.com/tutils/tnet/actions/workflows/build.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/tutils/tnet)](https://goreportcard.com/report/github.com/tutils/tnet)
 
 [English](README.md)
