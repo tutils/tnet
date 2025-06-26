@@ -79,7 +79,7 @@ var proxyCmd = &cobra.Command{
 var (
 	listenAddress  string
 	connectAddress string
-	dumpDir           string
+	dumpDir        string
 )
 
 func init() {
