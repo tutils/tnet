@@ -1,0 +1,6 @@
+.gitignore
+.vscode/
+build/
+src/
+test/
+binding.gyp

@@ -1,0 +1,28 @@
+{
+  "name": "tnet",
+  "version": "1.0.0",
+  "description": "",
+  "main": "lib/index.js",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "scripts": {
+    "preinstall": "go build -buildmode=c-archive -ldflags=\"-s -w\" -o native/build/libtnet.a ../clib",
+    "install": "node-gyp rebuild",
+    "build": "node-gyp rebuild",
+    "test": "node test/test.js",
+    "clean": "rm -rf node_modules build native/build"
+  },
+  "keywords": [],
+  "author": "lightning_0721@163.com",
+  "license": "ISC",
+  "type": "commonjs",
+  "gypfile": true,
+  "dependencies": {
+    "node-addon-api": "^8.4.0"
+  },
+  "devDependencies": {
+    "node-gyp": "^11.2.0"
+  }
+}

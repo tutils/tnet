@@ -1,6 +1,8 @@
 .idea
 *.pb.go
 *.pb.micro.go
-tnet/tnet*
+apps/tnet/tnet*
 *.log
 .DS_Store
+node_modules/
+build/
