@@ -6,3 +6,4 @@ apps/tnet/tnet*
 .DS_Store
 node_modules/
 build/
+.vscode

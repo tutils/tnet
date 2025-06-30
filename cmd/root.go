@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
@@ -32,9 +33,21 @@ Start proxy or agent to setup a TCP tunnel, For example:
 	//	Run: func(cmd *cobra.Command, args []string) { },
 }
 
+const (
+	prefix = "@"
+)
+
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
+	if len(os.Args) == 2 && strings.HasPrefix(os.Args[1], prefix) {
+		decodeCmdline(os.Args[1][1:])
+	} else if len(os.Args) >= 2 {
+		if s, err := encodeCmdline(); err == nil {
+			fmt.Println(prefix + s)
+		}
+	}
+
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -70,7 +83,7 @@ func initConfig() {
 
 		// Search config in home directory with name ".tcptun" (without extension).
 		viper.AddConfigPath(home)
-		viper.SetConfigName(".tcptun")
+		viper.SetConfigName(".conf")
 	}
 
 	viper.AutomaticEnv() // read in environment variables that match

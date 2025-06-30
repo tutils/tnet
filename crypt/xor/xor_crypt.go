@@ -13,17 +13,19 @@ type xorCrypt struct {
 	seed int64
 }
 
-func (c *xorCrypt) NewEncoder(w io.Writer) io.Writer {
+func (c *xorCrypt) NewEncoder(w io.Writer, opts ...crypt.EncoderOption) io.Writer {
+	o := newXorEncoderOptions(opts...)
 	return &xorEncoder{
 		w:   w,
-		rnd: rand.New(rand.NewSource(c.seed)),
+		rnd: rand.New(o.sourceNewer(c.seed)),
 	}
 }
 
-func (c *xorCrypt) NewDecoder(r io.Reader) io.Reader {
+func (c *xorCrypt) NewDecoder(r io.Reader, opts ...crypt.DecoderOption) io.Reader {
+	o := newXorDecoderOptions(opts...)
 	return &xorDecoder{
 		r:   r,
-		rnd: rand.New(rand.NewSource(c.seed)),
+		rnd: rand.New(o.sourceNewer(c.seed)),
 	}
 }
 
