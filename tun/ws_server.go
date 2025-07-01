@@ -3,6 +3,7 @@ package tun
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"net"
 	"net/http"
@@ -126,6 +127,9 @@ func (s *wsServer) serveHTTP(h Handler, w http.ResponseWriter, r *http.Request) 
 
 func (s *wsServer) ListenAndServe(h Handler) error {
 	addr := newWsAddr(s.opts.addr)
+	if addr == nil {
+		return errors.New("invalid address")
+	}
 	mux := http.NewServeMux()
 	mux.HandleFunc(addr.uri(), func(w http.ResponseWriter, r *http.Request) {
 		s.serveHTTP(h, w, r)
