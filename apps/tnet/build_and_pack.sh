@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 #set -x
 
@@ -8,36 +8,33 @@ export CGO_ENABLED="0"
 
 go mod tidy
 
-export GOARCH="amd64"
+LDFLAGS="-s -w"
+TARGET="tnet"  # 请替换为你的目标程序名
 
-export GOOS="linux"
-go build && \
-    (zip -r -q -o $TARGET-$GOOS-$GOARCH.zip $TARGET; \
-    rm $TARGET)
+# 定义架构和操作系统组合，使用 os/arch 的形式
+COMBINATIONS=(
+    "linux/amd64"
+    "darwin/amd64"
+    "windows/amd64"
+    "linux/arm64"
+    "darwin/arm64"
+    "windows/arm64"
+)
 
-export GOOS="darwin"
-go build && \
-    (zip -r -q -o $TARGET-$GOOS-$GOARCH.zip $TARGET; \
-    rm $TARGET)
+# 遍历组合进行编译和打包
+for COMBO in "${COMBINATIONS[@]}"; do
+    # 分割组合字符串为 GOOS 和 GOARCH
+    IFS="/" read -r GOOS GOARCH <<< "$COMBO"
 
-export GOOS="windows"
-go build && \
-    (zip -r -q -o $TARGET-$GOOS-$GOARCH.zip $TARGET.exe; \
-    rm $TARGET.exe)
+    # 为 Windows 平台指定可执行文件的后缀
+    if [ "$GOOS" == "windows" ]; then
+        EXT=".exe"
+    else
+        EXT=""
+    fi
 
-export GOARCH="arm64"
-
-export GOOS="linux"
-go build && \
-    (zip -r -q -o $TARGET-$GOOS-$GOARCH.zip $TARGET; \
-    rm $TARGET)
-
-export GOOS="darwin"
-go build && \
-    (zip -r -q -o $TARGET-$GOOS-$GOARCH.zip $TARGET; \
-    rm $TARGET)
-
-export GOOS="windows"
-go build && \
-    (zip -r -q -o $TARGET-$GOOS-$GOARCH.zip $TARGET.exe; \
-    rm $TARGET.exe)
+    # 编译并打包
+    GOARCH=$GOARCH GOOS=$GOOS go build -ldflags="$LDFLAGS" -o $TARGET$EXT && \
+    (zip -r -q -o $TARGET-$GOOS-$GOARCH.zip $TARGET$EXT; \
+    rm $TARGET$EXT)
+done
