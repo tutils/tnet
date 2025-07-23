@@ -11,6 +11,7 @@ type Options struct {
 	tunClient       tun.Client // for reverse mode
 	tunHandlerNewer AgentTunHandlerNewer
 	tunCrypt        crypt.Crypt
+	enabledExecute  bool
 }
 
 // Option is option setter for agent
@@ -51,5 +52,12 @@ func WithTunHandlerNewer(newer AgentTunHandlerNewer) Option {
 func WithTunCrypt(crypt crypt.Crypt) Option {
 	return func(opts *Options) {
 		opts.tunCrypt = crypt
+	}
+}
+
+// WithEnabledExecute sets enabled execute opt
+func WithEnabledExecute(enabled bool) Option {
+	return func(opts *Options) {
+		opts.enabledExecute = enabled
 	}
 }

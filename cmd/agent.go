@@ -43,12 +43,11 @@ var agentCmd = &cobra.Command{
 			)
 		}
 
-		
-
 		a = agent.New(
 			epOpt,
 			agent.WithTunHandlerNewer(agent.NewTCPAgentTunHandler),
 			agent.WithTunCrypt(xor.NewCrypt(xorCryptSeed)),
+			agent.WithEnabledExecute(enabledExecute),
 		)
 
 		// backoff
@@ -71,6 +70,12 @@ var agentCmd = &cobra.Command{
 	},
 }
 
+var (
+	enabledExecute bool
+)
+
+const defaultXorCryptSeed = 98545715754651
+
 func init() {
 	rootCmd.AddCommand(agentCmd)
 
@@ -83,7 +88,11 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	flags := agentCmd.Flags()
+	flags.BoolVarP(&enabledExecute, "enabled-execute", "e", false, "enable command execution")
 	flags.StringVarP(&tunServerListenAddress, "tunnel-listen", "", "", "tunnel server listening address")
 	flags.StringVarP(&tunClientConnectAddress, "tunnel-connect", "", "", "tunnel client connect address (for reverse mode)")
-	flags.Int64VarP(&xorCryptSeed, "crypt-key", "k", 98545715754651, "crypt key")
+	flags.Int64VarP(&xorCryptSeed, "crypt-key", "k", defaultXorCryptSeed, "crypt key")
+
+	agentCmd.MarkFlagsMutuallyExclusive("tunnel-connect", "tunnel-listen")
+	agentCmd.MarkFlagsOneRequired("tunnel-connect", "tunnel-listen")
 }

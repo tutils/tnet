@@ -3,7 +3,6 @@ package proxy
 import (
 	"github.com/tutils/tnet/counter"
 	"github.com/tutils/tnet/crypt"
-	"github.com/tutils/tnet/crypt/xor"
 	"github.com/tutils/tnet/tun"
 )
 
@@ -15,6 +14,8 @@ type Options struct {
 	tunCrypt        crypt.Crypt
 	listenAddr      string
 	connectAddr     string
+	executeArgs     []string
+	rawPTYMode      bool
 	downloadCounter counter.Counter
 	uploadCounter   counter.Counter
 	dumpDir         string
@@ -24,23 +25,10 @@ type Options struct {
 type Option func(opts *Options)
 
 // default proxy options
-var (
-	DefaultTunCrypt       = xor.NewCrypt(975135745)
-	DefaultListenAddress  = ":"
-	DefaultConnectAddress = ":3218"
-)
-
 func newOptions(opts ...Option) *Options {
 	opt := &Options{}
 	for _, o := range opts {
 		o(opt)
-	}
-
-	if opt.listenAddr == "" {
-		opt.listenAddr = DefaultListenAddress
-	}
-	if opt.connectAddr == "" {
-		opt.connectAddr = DefaultConnectAddress
 	}
 
 	return opt
@@ -87,6 +75,20 @@ func WithListenAddress(addr string) Option {
 func WithConnectAddress(addr string) Option {
 	return func(opts *Options) {
 		opts.connectAddr = addr
+	}
+}
+
+// WithConnectPTY sets remote agent connect pty opt
+func WithConnectPTY(args []string) Option {
+	return func(opts *Options) {
+		opts.executeArgs = args
+	}
+}
+
+// WithRawPTYMode sets raw pty mode opt
+func WithRawPTYMode(rawPTYMode bool) Option {
+	return func(opts *Options) {
+		opts.rawPTYMode = rawPTYMode
 	}
 }
 

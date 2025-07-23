@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"fmt"
+	"log"
 	"os"
 	"strings"
 
@@ -44,12 +44,12 @@ func Execute() {
 		decodeCmdline(os.Args[1][1:])
 	} else if len(os.Args) >= 2 {
 		if s, err := encodeCmdline(); err == nil {
-			fmt.Println(prefix + s)
+			log.Println(prefix + s)
 		}
 	}
 
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		os.Exit(1)
 	}
 }
@@ -77,7 +77,7 @@ func initConfig() {
 		// Find home directory.
 		home, err := homedir.Dir()
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 			os.Exit(1)
 		}
 
@@ -90,6 +90,6 @@ func initConfig() {
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("Using config file:", viper.ConfigFileUsed())
+		log.Println("Using config file:", viper.ConfigFileUsed())
 	}
 }

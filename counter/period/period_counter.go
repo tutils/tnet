@@ -58,7 +58,7 @@ func (c *periodCounter) check() {
 
 	now := time.Now()
 	value := c.Value()
-	atomic.StoreInt64(&c.increaceRatePerSec, (value-c.lastValue)/int64(elapsed.Seconds()))
+	atomic.StoreInt64(&c.increaceRatePerSec, int64(float64(value-c.lastValue)/elapsed.Seconds()))
 	c.lastValue = value
 	c.lastTime = now
 }

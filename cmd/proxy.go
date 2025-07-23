@@ -47,9 +47,11 @@ var proxyCmd = &cobra.Command{
 
 		p = proxy.New(
 			epOpt,
-			proxy.WithTunHandlerNewer(proxy.NewTCPProxyTunHandler),
+			proxy.WithTunHandlerNewer(proxy.NewProxyTunHandler),
 			proxy.WithListenAddress(listenAddress),
 			proxy.WithConnectAddress(connectAddress),
+			proxy.WithConnectPTY(executeArgs),
+			proxy.WithRawPTYMode(rawPTYMode),
 			proxy.WithTunCrypt(xor.NewCrypt(xorCryptSeed)),
 			proxy.WithDownloadCounter(period.NewPeriodCounter(time.Second)),
 			proxy.WithUploadCounter(period.NewPeriodCounter(time.Second)),
@@ -79,6 +81,8 @@ var proxyCmd = &cobra.Command{
 var (
 	listenAddress  string
 	connectAddress string
+	executeArgs    []string
+	rawPTYMode     bool
 	dumpDir        string
 )
 
@@ -95,10 +99,20 @@ func init() {
 	// is called directly, e.g.:
 	// proxyCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 	flags := proxyCmd.Flags()
-	flags.StringVarP(&listenAddress, "listen", "l", "0.0.0.0:56080", "proxy listen address")
-	flags.StringVarP(&connectAddress, "connect", "c", "127.0.0.1:3128", "agent connect address")
+	flags.StringVarP(&listenAddress, "listen", "l", "", "proxy listen address")
+	flags.StringVarP(&connectAddress, "connect", "c", "", "agent connect address")
+	flags.StringSliceVarP(&executeArgs, "execute", "e", nil, "agent execute command")
+	flags.BoolVarP(&rawPTYMode, "raw-pty", "r", false, "agent execute command in raw pty mode")
 	flags.StringVarP(&tunClientConnectAddress, "tunnel-connect", "", "", "tunnel client connect address")
 	flags.StringVarP(&tunServerListenAddress, "tunnel-listen", "", "", "tunnel server listening address (for reverse mode)")
-	flags.Int64VarP(&xorCryptSeed, "crypt-key", "k", 98545715754651, "crypt key")
+	flags.Int64VarP(&xorCryptSeed, "crypt-key", "k", defaultXorCryptSeed, "crypt key")
 	flags.StringVarP(&dumpDir, "dump-dir", "d", "", "dump traffic to files in this directory")
+
+	proxyCmd.MarkFlagsMutuallyExclusive("tunnel-connect", "tunnel-listen")
+	proxyCmd.MarkFlagsOneRequired("tunnel-connect", "tunnel-listen")
+
+	proxyCmd.MarkFlagsRequiredTogether("listen", "connect")
+
+	proxyCmd.MarkFlagsMutuallyExclusive("listen", "execute")
+	proxyCmd.MarkFlagsOneRequired("listen", "execute")
 }
