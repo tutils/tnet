@@ -16,7 +16,7 @@ func (h *agentTunHandler) agentPTY(ctx context.Context, tunID int64, tunr io.Rea
 		log.Println("unpackBodyConnectPTY err", err)
 		return
 	}
-	log.Printf("Read CmdConnectPTY, args %v, size %dx%d", executeArgs, width, height)
+	log.Printf("Read CmdConnectPTY, args %v, size %dx%d, raw %v", executeArgs, width, height, rawMode)
 
 	writeConnectResult := func(err error) error {
 		if err := common.PackHeader(tunw, common.CmdConnectPTYResult); err != nil {

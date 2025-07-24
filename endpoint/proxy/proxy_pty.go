@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"time"
 
 	"github.com/tutils/tnet/endpoint/common"
 	"golang.org/x/term"
@@ -72,8 +73,23 @@ func (h *proxyTunHandler) proxyPTY(ctx context.Context, tunID int64, tunr io.Rea
 			}
 
 			go func() {
+				ticker := time.NewTicker(time.Second)
+				defer ticker.Stop()
 				err := common.Copy(tunw, os.Stdin, func(tunw io.Writer, data []byte) error {
-					// TODO: 识别窗口变化发送CmdResizePTY
+					select {
+					case <-ticker.C:
+						if w, h, err := term.GetSize(fd); err == nil && (w != width || h != height) {
+							if err := common.PackHeader(tunw, common.CmdResizePTY); err != nil {
+								return err
+							}
+							if err := common.PackBodyResizePTY(tunw, int16(w), int16(h)); err != nil {
+								return err
+							}
+							width, height = w, h
+						}
+					default:
+					}
+
 					if err := common.PackHeader(tunw, common.CmdIOPTY); err != nil {
 						return err
 					}
@@ -94,10 +110,12 @@ func (h *proxyTunHandler) proxyPTY(ctx context.Context, tunID int64, tunr io.Rea
 				log.Println("unpackBodyPTYIO err", err)
 				return 1
 			}
-			if cr, ok := tunr.(*counterReader); ok {
-				log.Printf("Read CmdIOPTY, tunID %d, %d bytes, download %s/s", tunID, len(data), humanReadable(uint64(cr.c.IncreaceRatePerSec())))
-			} else {
-				log.Printf("Read CmdIOPTY, tunID %d, %d bytes", tunID, len(data))
+			if opts.rawPTYMode {
+				if cr, ok := tunr.(*counterReader); ok {
+					log.Printf("Read CmdIOPTY, tunID %d, %d bytes, download %s/s", tunID, len(data), humanReadable(uint64(cr.c.IncreaceRatePerSec())))
+				} else {
+					log.Printf("Read CmdIOPTY, tunID %d, %d bytes", tunID, len(data))
+				}
 			}
 			if _, err := os.Stdout.Write(data); err != nil {
 				log.Println("Write stdout err", err)

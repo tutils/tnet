@@ -88,7 +88,7 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	flags := agentCmd.Flags()
-	flags.BoolVarP(&enabledExecute, "enabled-execute", "e", false, "enable command execution")
+	flags.BoolVarP(&enabledExecute, "enabled-execute", "e", false, "enable remote command execution (SECURITY WARNING: only use with trusted input)")
 	flags.StringVarP(&tunServerListenAddress, "tunnel-listen", "", "", "tunnel server listening address")
 	flags.StringVarP(&tunClientConnectAddress, "tunnel-connect", "", "", "tunnel client connect address (for reverse mode)")
 	flags.Int64VarP(&xorCryptSeed, "crypt-key", "k", defaultXorCryptSeed, "crypt key")
