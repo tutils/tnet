@@ -2,7 +2,6 @@ package tun
 
 import (
 	"context"
-	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -24,14 +23,19 @@ func (c *wsClient) DialAndServe(h Handler) error {
 	wsw := newWsWriter(conn)
 	ctx := context.Background()
 
-	conn.SetReadDeadline(time.Now().Add(readTimeout))
-	origPingHandler := conn.PingHandler()
-	conn.SetPingHandler(func(appData string) error {
-		conn.SetReadDeadline(time.Now().Add(readTimeout))
-		return origPingHandler(appData)
-	})
+	// conn.SetReadDeadline(time.Now().Add(readTimeout))
+	// origPingHandler := conn.PingHandler()
+	// conn.SetPingHandler(func(appData string) error {
+	// 	updateReadDeadline(conn)
+	// 	// log.Println("@@send pong", appData)
+	// 	return origPingHandler(appData)
+	// })
 
+	done := make(chan struct{})
+	go startPing(conn, done)
 	h.ServeTun(ctx, wsr, wsw)
+
+	close(done)
 	return nil
 }
 

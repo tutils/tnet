@@ -58,6 +58,11 @@ type wsReader struct {
 }
 
 func (wsr *wsReader) Read(p []byte) (n int, err error) {
+	defer func() {
+		if n > 0 {
+			updateReadDeadline(wsr.conn)
+		}
+	}()
 	n, err = wsr.r.Read(p)
 	if err == io.EOF {
 		for {
@@ -103,7 +108,6 @@ var _ Server = &wsServer{}
 
 type wsServer struct {
 	opts ServerOptions
-	srv  *http.Server
 }
 
 func (s *wsServer) serveHTTP(h Handler, w http.ResponseWriter, r *http.Request) {
@@ -119,7 +123,6 @@ func (s *wsServer) serveHTTP(h Handler, w http.ResponseWriter, r *http.Request) 
 
 	done := make(chan struct{})
 	go startPing(conn, done)
-
 	h.ServeTun(ctx, wsr, wsw)
 
 	close(done)
@@ -160,12 +163,16 @@ func newWsServer(opts ...ServerOption) Server {
 
 const readTimeout = time.Second * 15
 const pingPeriod = time.Second * 10
-const writeTimeout = time.Second
+const writeTimeout = time.Second * 5
+
+func updateReadDeadline(conn *websocket.Conn) {
+	conn.SetReadDeadline(time.Now().Add(readTimeout))
+}
 
 func startPing(conn *websocket.Conn, done chan struct{}) {
 	conn.SetReadDeadline(time.Now().Add(readTimeout))
 	conn.SetPongHandler(func(string) error {
-		conn.SetReadDeadline(time.Now().Add(readTimeout))
+		updateReadDeadline(conn)
 		return nil
 	})
 	ticker := time.NewTicker(pingPeriod)
@@ -173,6 +180,7 @@ func startPing(conn *websocket.Conn, done chan struct{}) {
 	for {
 		select {
 		case <-ticker.C:
+			// log.Println("@@send ping")
 			conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(writeTimeout))
 		case <-done:
 			return
