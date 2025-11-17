@@ -1,0 +1,31 @@
+[Unit]
+Description=TNet Application Service
+Documentation=https://github.com/tutils/tnet
+After=network.target network-online.target
+Wants=network-online.target
+Requires=network-online.target
+
+[Service]
+Type=simple
+User=nobody
+Group=nobody
+WorkingDirectory=/
+ExecStart=/usr/bin/tnet proxy --listen=localhost:56080 --connect=127.0.0.1:1080 --tunnel-connect=ws://your.hostname:8080/stream --crypt-key=0000000
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=30
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tnet-service
+Environment=NETWORK_ENABLED=1
+
+# 安全设置
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=
+
+[Install]
+WantedBy=multi-user.target
