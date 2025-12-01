@@ -1,0 +1,330 @@
+/* 全局样式 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background-color: #f5f5f5;
+}
+
+.container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* 标题样式 */
+h1 {
+    color: #2c3e50;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+h2 {
+    color: #34495e;
+    margin-bottom: 15px;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 8px;
+}
+
+/* 上传区域 */
+.upload-section {
+    background-color: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+}
+
+/* 上传头部 */
+.upload-header {
+    margin-bottom: 12px;
+}
+
+.upload-header h3 {
+    color: #34495e;
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+/* 紧凑的上传表单 */
+.upload-form-compact {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+#file-input {
+    flex: 1;
+    min-width: 200px;
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+    font-size: 14px;
+}
+
+.btn {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: #3498db;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s;
+}
+
+/* 小按钮样式 */
+.btn-small {
+    padding: 8px 16px;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+/* 紧凑的状态消息 */
+.status-compact {
+    margin-top: 8px;
+    padding: 8px 10px;
+    font-size: 14px;
+}
+
+.btn:hover {
+    background-color: #2980b9;
+}
+
+.status {
+    margin-top: 10px;
+    padding: 10px;
+    border-radius: 4px;
+}
+
+.status.success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.status.error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+/* 文件列表区域 */
+.files-section {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 区域头部 - 标题和筛选框 */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.section-header h2 {
+    margin: 0;
+    flex: 0 0 auto;
+}
+
+/* 筛选容器样式 */
+.filter-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+
+.filter-container label {
+    font-weight: 500;
+    color: #555;
+    white-space: nowrap;
+}
+
+#file-filter {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    min-width: 200px;
+    transition: border-color 0.3s;
+}
+
+#file-filter:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+#file-filter::placeholder {
+    color: #999;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .section-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .filter-container {
+        justify-content: flex-start;
+    }
+
+    #file-filter {
+        flex: 1;
+        min-width: 0;
+    }
+}
+
+/* 路径导航 */
+.path-nav {
+    margin-bottom: 20px;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.path-nav a {
+    color: #3498db;
+    text-decoration: none;
+    margin-right: 5px;
+}
+
+.path-nav a:hover {
+    text-decoration: underline;
+}
+
+.path-nav span {
+    color: #666;
+    margin-right: 5px;
+}
+
+/* 文件列表 */
+.file-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+}
+
+/* 文件项样式 */
+.file-item {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 10px;
+    background-color: #f9f9f9;
+    transition: all 0.3s;
+}
+
+.file-item:hover {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+}
+
+/* 文件夹特殊样式 */
+.file-item.directory {
+    background-color: #e3f2fd;
+    border-color: #90caf9;
+}
+
+.file-item.directory:hover {
+    background-color: #bbdefb;
+}
+
+/* 文件链接样式 */
+.file-item a {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.file-item.directory a {
+    color: #1976d2;
+    font-weight: 500;
+}
+
+/* 文件图标 */
+.file-icon {
+    margin-right: 6px;
+    font-size: 16px;
+}
+
+/* 文件信息 */
+.file-info {
+    margin-bottom: 5px;
+}
+
+.file-name {
+    font-weight: 500;
+    word-break: break-all;
+    font-size: 14px;
+}
+
+.file-size {
+    font-size: 11px;
+    color: #666;
+    margin-left: 4px;
+}
+
+.file-date {
+    font-size: 11px;
+    color: #666;
+}
+
+.file-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.file-name {
+    font-weight: 500;
+    color: #2c3e50;
+    text-decoration: none;
+}
+
+.file-name:hover {
+    color: #3498db;
+    text-decoration: underline;
+}
+
+.file-size {
+    font-size: 11px;
+    color: #7f8c8d;
+}
+
+.file-date {
+    font-size: 11px;
+    color: #95a5a6;
+    margin-top: 3px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .file-list {
+        grid-template-columns: 1fr;
+    }
+
+    .container {
+        padding: 10px;
+    }
+}

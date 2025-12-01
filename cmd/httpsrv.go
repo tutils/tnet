@@ -1,23 +1,19 @@
 package cmd
 
 import (
-	"log"
-	"net/http"
-
 	"github.com/spf13/cobra"
+	"github.com/tutils/tnet/httpsrv"
 )
 
 // httpsrvCmd represents the agent command
 var httpsrvCmd = &cobra.Command{
 	Use:   "httpsrv",
-	Short: "HTTP Server",
-	Long: `Start HTTP Server, For example:
+	Short: "HTTP文件服务器",
+	Long: `启动HTTP文件服务器，支持文件浏览、上传和下载功能。例如：
   tnet httpsrv --listen 8080`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fileServer := http.FileServer(http.Dir("."))
-		http.Handle("/", fileServer)
-		log.Println("listening on", listenAddress)
-		return http.ListenAndServe(listenAddress, nil)
+		// 调用httpsrv包中的StartServer函数，使用正确的包导入
+		return httpsrv.StartServer(listenAddress)
 	},
 }
 
