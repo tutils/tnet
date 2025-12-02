@@ -265,6 +265,8 @@ h2 {
 .file-icon {
     margin-right: 6px;
     font-size: 16px;
+    vertical-align: middle;
+    line-height: 1;
 }
 
 /* 文件信息 */
@@ -294,6 +296,11 @@ h2 {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 5px;
+}
+
+.file-main {
+    display: flex;
+    align-items: center;
 }
 
 .file-name {

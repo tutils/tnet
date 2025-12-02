@@ -43,19 +43,20 @@ func StartServer(listenAddress string) error {
 	http.HandleFunc("/", serveStaticFile)
 	http.HandleFunc("/api/files", handleGetFileList)
 	http.HandleFunc("/api/upload", handleFileUpload)
-	http.HandleFunc("/files/", serveFileDownload)
+	http.HandleFunc("/files/", serveFileHandler)
+	http.HandleFunc("/files", serveFileHandler)
 
 	// 获取当前工作目录
 	workDir, err := os.Getwd()
 	if err != nil {
-		log.Printf("警告: 无法获取当前工作目录: %v", err)
+		log.Printf("Warning: Failed to get current working directory: %v", err)
 		workDir = "未知目录"
 	}
 
 	// 启动服务器
-	log.Printf("[INFO] 启动HTTP文件服务器")
-	log.Printf("[INFO] 监听地址: %s", listenAddress)
-	log.Printf("[INFO] 文件服务目录: %s", workDir)
+	log.Printf("[INFO] Starting HTTP file server")
+	log.Printf("[INFO] Listening on: %s", listenAddress)
+	log.Printf("[INFO] File service directory: %s", workDir)
 	return http.ListenAndServe(listenAddress, nil)
 }
 
@@ -103,10 +104,10 @@ type APIResponse struct {
 // handleGetFileList 处理获取文件列表请求
 func handleGetFileList(w http.ResponseWriter, r *http.Request) {
 	clientIP := r.RemoteAddr
-	log.Printf("[INFO] %s 请求文件列表", clientIP)
+	log.Printf("[INFO] %s Requesting file list", clientIP)
 
 	if r.Method != http.MethodGet {
-		log.Printf("[ERROR] %s 方法不允许，期望GET，实际为 %s", clientIP, r.Method)
+		log.Printf("[ERROR] %s Method not allowed, expected GET, got %s", clientIP, r.Method)
 		http.Error(w, "只支持GET请求", http.StatusMethodNotAllowed)
 		return
 	}
@@ -127,7 +128,7 @@ func handleGetFileList(w http.ResponseWriter, r *http.Request) {
 	response := APIResponse{}
 
 	if err != nil {
-		log.Printf("[ERROR] %s 获取文件列表失败: %v", clientIP, err)
+		log.Printf("[ERROR] %s Failed to get file list: %v", clientIP, err)
 		// 返回错误信息，而不是使用http.Error
 		response.Success = false
 		response.Error = err.Error()
@@ -140,13 +141,13 @@ func handleGetFileList(w http.ResponseWriter, r *http.Request) {
 			response.Data = []FileInfo{}
 		} else {
 			response.Data = files
-			log.Printf("[INFO] %s 成功获取文件列表，共 %d 个文件", clientIP, len(files))
+			log.Printf("[INFO] %s Successfully got file list, total %d files", clientIP, len(files))
 		}
 	}
 
 	// 返回JSON响应
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		log.Printf("[ERROR] %s 编码文件列表响应失败: %v", clientIP, err)
+		log.Printf("[ERROR] %s Failed to encode file list response: %v", clientIP, err)
 		http.Error(w, "处理响应失败", http.StatusInternalServerError)
 		return
 	}
@@ -250,10 +251,10 @@ func sortFileList(files []FileInfo) {
 // handleFileUpload 处理文件上传
 func handleFileUpload(w http.ResponseWriter, r *http.Request) {
 	clientIP := r.RemoteAddr
-	log.Printf("[INFO] %s 请求上传文件", clientIP)
+	log.Printf("[INFO] %s Requesting file upload", clientIP)
 
 	if r.Method != http.MethodPost {
-		log.Printf("[ERROR] %s 方法不允许，期望POST，实际为 %s", clientIP, r.Method)
+		log.Printf("[ERROR] %s Method not allowed, expected POST, got %s", clientIP, r.Method)
 		http.Error(w, "只支持POST请求", http.StatusMethodNotAllowed)
 		return
 	}
@@ -261,7 +262,7 @@ func handleFileUpload(w http.ResponseWriter, r *http.Request) {
 	// 解析多部分表单
 	err := r.ParseMultipartForm(10 << 20) // 10MB
 	if err != nil {
-		log.Printf("[ERROR] %s 解析表单失败: %v", clientIP, err)
+		log.Printf("[ERROR] %s Failed to parse form: %v", clientIP, err)
 		http.Error(w, "解析表单失败", http.StatusBadRequest)
 		return
 	}
@@ -269,7 +270,7 @@ func handleFileUpload(w http.ResponseWriter, r *http.Request) {
 	// 获取上传的文件
 	file, header, err := r.FormFile("file")
 	if err != nil {
-		log.Printf("[ERROR] %s 获取上传文件失败: %v", clientIP, err)
+		log.Printf("[ERROR] %s Failed to get uploaded file: %v", clientIP, err)
 		http.Error(w, "获取上传文件失败", http.StatusBadRequest)
 		return
 	}
@@ -284,7 +285,7 @@ func handleFileUpload(w http.ResponseWriter, r *http.Request) {
 	// 获取当前工作目录
 	baseDir, err := os.Getwd()
 	if err != nil {
-		log.Printf("[ERROR] %s 获取当前目录失败: %v", clientIP, err)
+		log.Printf("[ERROR] %s Failed to get current directory: %v", clientIP, err)
 		http.Error(w, "服务器错误", http.StatusInternalServerError)
 		return
 	}
@@ -295,28 +296,28 @@ func handleFileUpload(w http.ResponseWriter, r *http.Request) {
 	// 安全检查：确保不会访问到工作目录之外
 	targetDir, err = filepath.Abs(targetDir)
 	if err != nil {
-		log.Printf("[ERROR] %s 获取绝对路径失败: %v", clientIP, err)
+		log.Printf("[ERROR] %s Failed to get absolute path: %v", clientIP, err)
 		http.Error(w, "无效的路径", http.StatusBadRequest)
 		return
 	}
 
 	baseDir, err = filepath.Abs(baseDir)
 	if err != nil {
-		log.Printf("[ERROR] %s 获取基础目录绝对路径失败: %v", clientIP, err)
+		log.Printf("[ERROR] %s Failed to get base directory absolute path: %v", clientIP, err)
 		http.Error(w, "服务器错误", http.StatusInternalServerError)
 		return
 	}
 
 	// 确保目标目录在基础目录之内
 	if !strings.HasPrefix(targetDir, baseDir) {
-		log.Printf("[ERROR] %s 尝试访问工作目录之外的路径: %s", clientIP, targetPath)
+		log.Printf("[ERROR] %s Attempted to access path outside working directory: %s", clientIP, targetPath)
 		http.Error(w, "访问被拒绝：不能访问工作目录之外的路径", http.StatusForbidden)
 		return
 	}
 
 	// 确保目标目录存在
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
-		log.Printf("[ERROR] %s 创建目录失败: %v", clientIP, err)
+		log.Printf("[ERROR] %s Failed to create directory: %v", clientIP, err)
 		http.Error(w, "创建目录失败", http.StatusInternalServerError)
 		return
 	}
@@ -327,7 +328,7 @@ func handleFileUpload(w http.ResponseWriter, r *http.Request) {
 	// 创建目标文件
 	dst, err := os.Create(filepath.Join(targetDir, savedFilename))
 	if err != nil {
-		log.Printf("[ERROR] %s 创建文件失败: %v", clientIP, err)
+		log.Printf("[ERROR] %s Failed to create file: %v", clientIP, err)
 		http.Error(w, "创建文件失败", http.StatusInternalServerError)
 		return
 	}
@@ -336,13 +337,13 @@ func handleFileUpload(w http.ResponseWriter, r *http.Request) {
 	// 复制文件内容
 	size, err := io.Copy(dst, file)
 	if err != nil {
-		log.Printf("[ERROR] %s 保存文件失败: %v", clientIP, err)
+		log.Printf("[ERROR] %s Failed to save file: %v", clientIP, err)
 		http.Error(w, "保存文件失败", http.StatusInternalServerError)
 		return
 	}
 
 	// 记录上传日志
-	log.Printf("[INFO] %s 文件上传成功: 原始名称=%s, 保存名称=%s, 大小=%d bytes",
+	log.Printf("[INFO] %s File uploaded successfully: original name=%s, saved name=%s, size=%d bytes",
 		clientIP, header.Filename, savedFilename, size)
 
 	// 返回成功响应
@@ -355,7 +356,7 @@ func handleFileUpload(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		log.Printf("[ERROR] %s 编码上传响应失败: %v", clientIP, err)
+		log.Printf("[ERROR] %s Failed to encode upload response: %v", clientIP, err)
 	}
 }
 
@@ -389,32 +390,94 @@ func getSafeFilename(originalFilename string, targetDir string) string {
 	}
 }
 
-// serveFileDownload 提供文件下载服务
-func serveFileDownload(w http.ResponseWriter, r *http.Request) {
+// serveFileHandler 处理文件和目录请求
+func serveFileHandler(w http.ResponseWriter, r *http.Request) {
 	clientIP := r.RemoteAddr
 
 	// 提取文件路径（去掉/files/前缀）
 	filePath := strings.TrimPrefix(r.URL.Path, "/files/")
 	if filePath == "" {
-		log.Printf("[WARNING] %s 请求无效的文件路径", clientIP)
+		filePath = "."
+	}
+
+	// 获取当前工作目录
+	baseDir, err := os.Getwd()
+	if err != nil {
+		log.Printf("[ERROR] %s Failed to get current directory: %v", clientIP, err)
+		http.Error(w, "服务器错误", http.StatusInternalServerError)
+		return
+	}
+
+	// 构建完整路径
+	targetPath := filepath.Join(baseDir, filePath)
+
+	// 安全检查：确保不会访问到工作目录之外
+	targetPath, err = filepath.Abs(targetPath)
+	if err != nil {
+		log.Printf("[ERROR] %s Failed to get absolute path: %v", clientIP, err)
+		http.Error(w, "无效的路径", http.StatusBadRequest)
+		return
+	}
+
+	baseDir, err = filepath.Abs(baseDir)
+	if err != nil {
+		log.Printf("[ERROR] %s Failed to get base directory absolute path: %v", clientIP, err)
+		http.Error(w, "服务器错误", http.StatusInternalServerError)
+		return
+	}
+
+	// 确保目标路径在基础目录之内
+	if !strings.HasPrefix(targetPath, baseDir) {
+		log.Printf("[ERROR] %s Attempted to access path outside working directory: %s", clientIP, filePath)
+		http.Error(w, "访问被拒绝：不能访问工作目录之外的路径", http.StatusForbidden)
+		return
+	}
+
+	// 获取文件信息
+	fileInfo, err := os.Stat(targetPath)
+	if err != nil {
+		log.Printf("[ERROR] %s Failed to access path: %s - %v", clientIP, filePath, err)
 		http.NotFound(w, r)
 		return
 	}
 
-	// 安全检查和路径处理
-	filePath = filepath.Clean(filePath)
-	if filePath == ".." || strings.HasPrefix(filePath, "../") {
-		log.Printf("[WARNING] %s 尝试访问非法路径", clientIP)
-		http.Error(w, "访问被拒绝", http.StatusForbidden)
+	// 如果是目录，返回HTML页面显示目录列表
+	if fileInfo.IsDir() {
+		log.Printf("[INFO] %s Browsing directory: %s", clientIP, filePath)
+		serveDirectoryListing(w, r, filePath, targetPath, baseDir)
 		return
 	}
 
-	log.Printf("[INFO] %s 请求下载文件: %s", clientIP, filePath)
+	// 如果是文件，返回文件内容供下载
+	log.Printf("[INFO] %s Requesting file download: %s", clientIP, filePath)
+	serveFileDownload(w, r, filePath, targetPath)
+}
+
+// serveDirectoryListing 返回目录列表HTML页面
+func serveDirectoryListing(w http.ResponseWriter, r *http.Request, requestPath string, targetPath string, baseDir string) {
+	// 构建HTML响应
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	// 读取静态HTML文件
+	indexContent, err := staticFiles.ReadFile("static/index.html")
+	if err != nil {
+		log.Printf("[ERROR] %s Failed to read static file: %v", r.RemoteAddr, err)
+		http.Error(w, "服务器错误", http.StatusInternalServerError)
+		return
+	}
+
+	// 写入响应
+	w.Write(indexContent)
+}
+
+// serveFileDownload 提供文件下载服务
+func serveFileDownload(w http.ResponseWriter, r *http.Request, requestPath string, targetPath string) {
+	clientIP := r.RemoteAddr
 
 	// 打开文件
-	file, err := os.Open(filePath)
+	file, err := os.Open(targetPath)
 	if err != nil {
-		log.Printf("[ERROR] %s 打开文件失败: %s - %v", clientIP, filePath, err)
+		log.Printf("[ERROR] %s Failed to open file: %s - %v", clientIP, requestPath, err)
 		http.NotFound(w, r)
 		return
 	}
@@ -423,20 +486,13 @@ func serveFileDownload(w http.ResponseWriter, r *http.Request) {
 	// 获取文件信息
 	fileInfo, err := file.Stat()
 	if err != nil {
-		log.Printf("[ERROR] %s 获取文件信息失败: %s - %v", clientIP, filePath, err)
+		log.Printf("[ERROR] %s Failed to get file info: %s - %v", clientIP, requestPath, err)
 		http.Error(w, "获取文件信息失败", http.StatusInternalServerError)
 		return
 	}
 
-	// 检查是否为目录
-	if fileInfo.IsDir() {
-		log.Printf("[ERROR] %s 尝试下载目录: %s", clientIP, filePath)
-		http.Error(w, "不能下载目录", http.StatusBadRequest)
-		return
-	}
-
 	// 设置响应头 - 使用文件名部分作为下载名称
-	displayName := filepath.Base(filePath)
+	displayName := filepath.Base(requestPath)
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", displayName))
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", fileInfo.Size()))
 
@@ -444,12 +500,12 @@ func serveFileDownload(w http.ResponseWriter, r *http.Request) {
 	buffer := make([]byte, 512)
 	_, err = file.Read(buffer)
 	if err != nil && err != io.EOF {
-		log.Printf("[WARNING] %s 读取文件头部失败: %v", clientIP, err)
+		log.Printf("[WARNING] %s Failed to read file header: %v", clientIP, err)
 	} else {
 		// 重置文件指针到开始位置
 		_, seekErr := file.Seek(0, 0)
 		if seekErr != nil {
-			log.Printf("[ERROR] %s 重置文件指针失败: %v", clientIP, seekErr)
+			log.Printf("[ERROR] %s Failed to reset file pointer: %v", clientIP, seekErr)
 		}
 		contentType := http.DetectContentType(buffer)
 		w.Header().Set("Content-Type", contentType)
@@ -458,11 +514,11 @@ func serveFileDownload(w http.ResponseWriter, r *http.Request) {
 	// 发送文件
 	_, err = io.Copy(w, file)
 	if err != nil {
-		log.Printf("[ERROR] %s 文件传输失败: %s - %v", clientIP, filePath, err)
+		log.Printf("[ERROR] %s File transfer failed: %s - %v", clientIP, requestPath, err)
 	} else {
 		// 记录成功的下载日志
-		log.Printf("[INFO] %s 文件下载完成: %s, 大小: %d bytes",
-			clientIP, filePath, fileInfo.Size())
+		log.Printf("[INFO] %s File download completed: %s, size: %d bytes",
+			clientIP, requestPath, fileInfo.Size())
 	}
 }
 

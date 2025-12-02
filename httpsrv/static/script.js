@@ -5,18 +5,8 @@ let originalFileList = [];
 
 // 页面加载完成后执行
 window.addEventListener('DOMContentLoaded', () => {
-    // 从URL hash中读取文件路径（如果存在）
-    let initialPath = currentPath;
-    if (window.location.hash) {
-        try {
-            const hashPath = decodeURIComponent(window.location.hash.substring(1));
-            if (hashPath) {
-                initialPath = hashPath;
-            }
-        } catch (e) {
-            console.error('解析URL hash失败:', e);
-        }
-    }
+    // 从URL路径中读取文件路径（如果存在）
+    let initialPath = extractPathFromURL();
 
     // 加载文件列表
     loadFileList(initialPath);
@@ -29,25 +19,30 @@ window.addEventListener('DOMContentLoaded', () => {
     const fileFilter = document.getElementById('file-filter');
     fileFilter.addEventListener('input', applyFileFilter);
 
-    // 监听URL hash变化事件，确保前进/后退按钮或直接修改URL时能更新页面内容
-    window.addEventListener('hashchange', () => {
+    // 监听URL变化事件，确保前进/后退按钮或直接修改URL时能更新页面内容
+    window.addEventListener('popstate', () => {
         try {
-            let newPath = '.';
-            if (window.location.hash) {
-                const hashPath = decodeURIComponent(window.location.hash.substring(1));
-                if (hashPath) {
-                    newPath = hashPath;
-                }
-            }
-            // 只有当hash路径与当前路径不同时才重新加载
+            const newPath = extractPathFromURL();
+            // 只有当路径与当前路径不同时才重新加载
             if (newPath !== currentPath) {
                 loadFileList(newPath);
             }
         } catch (e) {
-            console.error('处理URL hash变化失败:', e);
+            console.error('处理URL变化失败:', e);
         }
     });
 });
+
+// 从URL中提取路径
+function extractPathFromURL() {
+    const path = window.location.pathname;
+    if (path.startsWith('/files/')) {
+        // 提取/files/后面的路径
+        const extractedPath = path.substring(7);
+        return extractedPath || '.';
+    }
+    return '.';
+}
 
 // 加载文件列表
 async function loadFileList(path) {
@@ -58,8 +53,9 @@ async function loadFileList(path) {
         // 更新当前路径
         currentPath = path;
 
-        // 更新URL的hash部分以反映当前文件路径
-        window.location.hash = path === '.' ? '' : `#${encodeURIComponent(path)}`;
+        // 更新URL路径以反映当前文件路径
+        const newUrl = path === '.' ? '/' : `/files/${path}`;
+        window.history.pushState({ path: path }, '', newUrl);
 
         // 构建请求URL
         const url = `/api/files?path=${encodeURIComponent(path)}`;
@@ -120,9 +116,12 @@ async function loadFileList(path) {
                 // 目录项：点击进入子目录
                 fileContent = `
                     <div class="file-info">
-                        <a href="javascript:void(0)" class="file-name" data-name="${encodeURIComponent(file.name)}">
-                            <span class="file-icon">📁</span>${file.name}
-                        </a>
+                        <div class="file-main">
+                            <span class="file-icon">📁</span>
+                            <a href="javascript:void(0)" class="file-name" data-name="${encodeURIComponent(file.name)}">
+                                ${file.name}
+                            </a>
+                        </div>
                         <span class="file-size">${formattedSize}</span>
                     </div>
                     <div class="file-date">修改时间: ${formattedDate}</div>
@@ -133,9 +132,12 @@ async function loadFileList(path) {
                 const fullFilePath = path === '.' ? file.name : `${path}/${file.name}`;
                 fileContent = `
                     <div class="file-info">
-                        <a href="/files/${encodeURIComponent(fullFilePath)}" class="file-name" download>
-                            <span class="file-icon">📄</span>${file.name}
-                        </a>
+                        <div class="file-main">
+                            <span class="file-icon">📄</span>
+                            <a href="/files/${fullFilePath}" class="file-name" download>
+                                ${file.name}
+                            </a>
+                        </div>
                         <span class="file-size">${formattedSize}</span>
                     </div>
                     <div class="file-date">修改时间: ${formattedDate}</div>
@@ -194,27 +196,33 @@ function applyFileFilter() {
         if (file.isDir) {
             // 目录项：点击进入子目录
             fileContent = `
-                <div class="file-info">
-                    <a href="javascript:void(0)" class="file-name" data-name="${encodeURIComponent(file.name)}">
-                        <span class="file-icon">📁</span>${file.name}
-                    </a>
-                    <span class="file-size">${formattedSize}</span>
-                </div>
-                <div class="file-date">修改时间: ${formattedDate}</div>
-            `;
+                    <div class="file-info">
+                        <div class="file-main">
+                            <span class="file-icon">📁</span>
+                            <a href="javascript:void(0)" class="file-name" data-name="${encodeURIComponent(file.name)}">
+                                ${file.name}
+                            </a>
+                        </div>
+                        <span class="file-size">${formattedSize}</span>
+                    </div>
+                    <div class="file-date">修改时间: ${formattedDate}</div>
+                `;
         } else {
             // 文件项：点击下载
             // 构建完整的文件路径（包含当前目录）
             const fullFilePath = currentPath === '.' ? file.name : `${currentPath}/${file.name}`;
             fileContent = `
-                <div class="file-info">
-                    <a href="/files/${encodeURIComponent(fullFilePath)}" class="file-name" download>
-                        <span class="file-icon">📄</span>${file.name}
-                    </a>
-                    <span class="file-size">${formattedSize}</span>
-                </div>
-                <div class="file-date">修改时间: ${formattedDate}</div>
-            `;
+                    <div class="file-info">
+                        <div class="file-main">
+                            <span class="file-icon">📄</span>
+                            <a href="/files/${fullFilePath}" class="file-name" download>
+                                ${file.name}
+                            </a>
+                        </div>
+                        <span class="file-size">${formattedSize}</span>
+                    </div>
+                    <div class="file-date">修改时间: ${formattedDate}</div>
+                `;
         }
 
         fileItem.innerHTML = fileContent;
