@@ -128,7 +128,7 @@ func (s *wsServer) serveHTTP(h Handler, w http.ResponseWriter, r *http.Request) 
 	close(done)
 }
 
-func (s *wsServer) ListenAndServe(h Handler) error {
+func (s *wsServer) ListenAndServe(ctx context.Context, h Handler) error {
 	addr := newWsAddr(s.opts.addr)
 	if addr == nil {
 		return errors.New("invalid address")
@@ -146,7 +146,21 @@ func (s *wsServer) ListenAndServe(h Handler) error {
 			return context.WithValue(ctx, ConnIDContextKey{}, connID)
 		},
 	}
-	return srv.ListenAndServe()
+
+	// Start server in a goroutine
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			// Don't return error here, we'll handle it via the context cancel
+		}
+	}()
+
+	// Wait for context cancellation
+	<-ctx.Done()
+
+	// Shutdown the server gracefully
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	return srv.Shutdown(shutdownCtx)
 }
 
 // ConnIDContextKey is context key of connID

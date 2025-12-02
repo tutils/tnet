@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"time"
@@ -53,7 +54,9 @@ var agentCmd = &cobra.Command{
 		// backoff
 		var tempDelay time.Duration
 		for {
-			if err := a.Serve(); err != nil {
+			// Create a new context for each Serve call
+			ctx := context.Background()
+			if err := a.Serve(ctx); err != nil {
 				if tempDelay == 0 {
 					tempDelay = 5 * time.Millisecond
 				} else {

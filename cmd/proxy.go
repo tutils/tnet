@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"time"
@@ -61,7 +62,9 @@ var proxyCmd = &cobra.Command{
 		// backoff
 		var tempDelay time.Duration
 		for {
-			if err := p.Serve(); err != nil {
+			// Create a new context for each Serve call
+			ctx := context.Background()
+			if err := p.Serve(ctx); err != nil {
 				if tempDelay == 0 {
 					tempDelay = 5 * time.Millisecond
 				} else {

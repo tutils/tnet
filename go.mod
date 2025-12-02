@@ -6,6 +6,7 @@ toolchain go1.24.4
 
 require (
 	github.com/aymanbagabas/go-pty v0.2.2
+	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/spf13/cobra v1.9.1

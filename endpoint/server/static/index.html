@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>TNet Management</title>
+    <link rel="stylesheet" type="text/css" href="/static/style.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1>TNet Management</h1>
+
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="agents">Agents <span class="tab-badge"
+                    id="agents-count">0</span></button>
+            <button class="tab-btn" data-tab="proxies">Proxies <span class="tab-badge"
+                    id="proxies-count">0</span></button>
+        </div>
+
+        <!-- Agents Section -->
+        <div id="agents" class="tab-content active">
+            <div class="section-header">
+                <h2>Agents</h2>
+                <button id="add-agent-btn" class="add-btn">Add Agent</button>
+            </div>
+
+            <!-- Add Agent Modal -->
+            <div id="add-agent-modal" class="modal">
+                <div class="modal-content">
+                    <span class="close">&times;</span>
+                    <h3>Add New Agent</h3>
+                    <form id="add-agent-form">
+                        <div class="mode-toggle">
+                            <label>
+                                <input type="radio" name="agent-input-mode" value="form" checked> Form Mode
+                            </label>
+                            <label>
+                                <input type="radio" name="agent-input-mode" value="direct"> Direct Command Mode
+                            </label>
+                        </div>
+                        <!-- Form Mode Fields -->
+                        <div id="agent-form-fields">
+                            <div class="form-group">
+                                <label>Tunnel Mode:</label>
+                                <div class="radio-group">
+                                    <label><input type="radio" name="agent-tunnel-mode" value="listen" checked>
+                                        Listen</label>
+                                    <label><input type="radio" name="agent-tunnel-mode" value="connect"> Connect</label>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="agent-tunnel-listen">Tunnel Listen Address:</label>
+                                <input type="text" id="agent-tunnel-listen" name="tunnel-listen"
+                                    placeholder="ws://0.0.0.0:8080/stream">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="agent-tunnel-connect">Tunnel Connect Address:</label>
+                                <input type="text" id="agent-tunnel-connect" name="tunnel-connect"
+                                    placeholder="ws://proxy-server:8080/stream">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="agent-crypt-key">Crypt Key:</label>
+                                <div class="password-input-group">
+                                    <input type="password" id="agent-crypt-key" name="crypt-key" value="98545715754651"
+                                        inputmode="numeric" pattern="[0-9]*">
+                                    <div class="input-buttons">
+                                        <button type="button" class="action-btn" onclick="copyCryptKey('agent')"
+                                            title="Copy">📋</button>
+                                        <button type="button" class="action-btn"
+                                            onclick="generateRandomCryptKey('agent')" title="Random">🎲</button>
+                                        <button type="button" class="toggle-visibility"
+                                            onclick="toggleCryptKeyVisibility('agent')"
+                                            title="Toggle Visibility">👁️</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="agent-enabled-execute">
+                                    <input type="checkbox" id="agent-enabled-execute" name="enabled-execute"> Enable
+                                    Remote
+                                    Command Execution
+                                </label>
+                                <small>(SECURITY WARNING: only use with trusted input)</small>
+                            </div>
+                        </div>
+
+                        <!-- Direct Command Mode Fields -->
+                        <div id="agent-direct-fields" class="hidden">
+                            <div class="form-group">
+                                <label for="agent-direct-command">Command Parameters:</label>
+                                <input type="text" id="agent-direct-command" name="direct-command"
+                                    placeholder="--tunnel-listen=:9000 --crypt-key=12345">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="submit-btn">Add Agent</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="service-list">
+                <table class="service-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Status</th>
+                            <th>Arguments</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="agents-list"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Proxies Section -->
+        <div id="proxies" class="tab-content">
+            <div class="section-header">
+                <h2>Proxies</h2>
+                <button id="add-proxy-btn" class="add-btn">Add Proxy</button>
+            </div>
+
+            <!-- Add Proxy Modal -->
+            <div id="add-proxy-modal" class="modal">
+                <div class="modal-content">
+                    <span class="close">&times;</span>
+                    <h3>Add New Proxy</h3>
+                    <form id="add-proxy-form">
+                        <div class="mode-toggle">
+                            <label>
+                                <input type="radio" name="proxy-input-mode" value="form" checked> Form Mode
+                            </label>
+                            <label>
+                                <input type="radio" name="proxy-input-mode" value="direct"> Direct Command Mode
+                            </label>
+                        </div>
+                        <!-- Form Mode Fields -->
+                        <div id="proxy-form-fields">
+                            <div class="form-group">
+                                <label>Tunnel Mode:</label>
+                                <div class="radio-group">
+                                    <label><input type="radio" name="proxy-tunnel-mode" value="listen">
+                                        Listen</label>
+                                    <label><input type="radio" name="proxy-tunnel-mode" value="connect" checked>
+                                        Connect</label>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="proxy-tunnel-listen">Tunnel Listen Address:</label>
+                                <input type="text" id="proxy-tunnel-listen" name="tunnel-listen"
+                                    placeholder="ws://0.0.0.0:8080/stream">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="proxy-tunnel-connect">Tunnel Connect Address:</label>
+                                <input type="text" id="proxy-tunnel-connect" name="tunnel-connect"
+                                    placeholder="ws://agent-server:8080/stream">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Mode:</label>
+                                <div class="radio-group">
+                                    <label><input type="radio" name="proxy-mode" value="proxy" checked> Proxy
+                                        Mode</label>
+                                    <label><input type="radio" name="proxy-mode" value="execute"> Execute Mode</label>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="proxy-listen">Listen Address:</label>
+                                <input type="text" id="proxy-listen" name="listen" placeholder="0.0.0.0:56080">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="proxy-connect">Connect Address:</label>
+                                <input type="text" id="proxy-connect" name="connect" placeholder="127.0.0.1:3128">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="proxy-execute">Execute Command:</label>
+                                <input type="text" id="proxy-execute" name="execute" placeholder="bash">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="proxy-raw-pty">
+                                    <input type="checkbox" id="proxy-raw-pty" name="raw-pty"> Raw PTY Mode
+                                </label>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="proxy-crypt-key">Crypt Key:</label>
+                                <div class="password-input-group">
+                                    <input type="password" id="proxy-crypt-key" name="crypt-key" value="98545715754651"
+                                        inputmode="numeric" pattern="[0-9]*">
+                                    <div class="input-buttons">
+                                        <button type="button" class="action-btn" onclick="copyCryptKey('proxy')"
+                                            title="Copy">📋</button>
+                                        <button type="button" class="action-btn"
+                                            onclick="generateRandomCryptKey('proxy')" title="Random">🎲</button>
+                                        <button type="button" class="toggle-visibility"
+                                            onclick="toggleCryptKeyVisibility('proxy')"
+                                            title="Toggle Visibility">👁️</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="proxy-dump-dir">Dump Directory:</label>
+                                <input type="text" id="proxy-dump-dir" name="dump-dir" placeholder="/path/to/dump">
+                            </div>
+                        </div>
+
+                        <!-- Direct Command Mode Fields -->
+                        <div id="proxy-direct-fields" class="hidden">
+                            <div class="form-group">
+                                <label for="proxy-direct-command">Command Parameters:</label>
+                                <input type="text" id="proxy-direct-command" name="direct-command"
+                                    placeholder="--listen=localhost:56081 --connect=127.0.0.1:53128 --tunnel-connect=wss://demo.tutils.com/demo...">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="submit-btn">Add Proxy</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="service-list">
+                <table class="service-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Status</th>
+                            <th>Arguments</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="proxies-list"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+
+</html>

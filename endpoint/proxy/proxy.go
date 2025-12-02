@@ -26,19 +26,19 @@ func New(opts ...Option) *Proxy {
 }
 
 // Serve starts proxy
-func (p *Proxy) Serve() error {
+func (p *Proxy) Serve(ctx context.Context) error {
 	if tunServer := p.opts.tunServer; tunServer != nil {
 		log.Println("start tun server (reverse mode)")
 		defer log.Println("tun server exit")
 		h := p.opts.tunHandlerNewer(p)
-		return tunServer.ListenAndServe(h)
+		return tunServer.ListenAndServe(ctx, h)
 	}
 
 	if tunClient := p.opts.tunClient; tunClient != nil {
 		log.Println("start tun client")
 		defer log.Println("tun client exit")
 		h := p.opts.tunHandlerNewer(p)
-		return tunClient.DialAndServe(h)
+		return tunClient.DialAndServe(ctx, h)
 	}
 
 	return fmt.Errorf("neither tunnel client nor server is configured")

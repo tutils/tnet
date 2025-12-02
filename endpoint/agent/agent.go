@@ -25,19 +25,19 @@ func New(opts ...Option) *Agent {
 }
 
 // Serve starts agent
-func (a *Agent) Serve() error {
+func (a *Agent) Serve(ctx context.Context) error {
 	if tunClient := a.opts.tunClient; tunClient != nil {
 		log.Println("start tun client (reverse mode)")
 		defer log.Println("tun client exit")
 		h := a.opts.tunHandlerNewer(a)
-		return tunClient.DialAndServe(h)
+		return tunClient.DialAndServe(ctx, h)
 	}
 
 	if tunServer := a.opts.tunServer; tunServer != nil {
 		log.Println("start tun server")
 		defer log.Println("tun server exit")
 		h := a.opts.tunHandlerNewer(a)
-		return tunServer.ListenAndServe(h)
+		return tunServer.ListenAndServe(ctx, h)
 	}
 
 	return fmt.Errorf("neither tunnel client nor server is configured")
@@ -102,7 +102,7 @@ func (h *agentTunHandler) ServeTun(ctx context.Context, r io.Reader, w io.Writer
 		}
 		h.agentPTY(ctx, tunID, tunr, tunw)
 	default:
-	
+
 		log.Println("invalid cmd")
 		return
 	}

@@ -12,8 +12,8 @@ type wsClient struct {
 	opts ClientOptions
 }
 
-func (c *wsClient) DialAndServe(h Handler) error {
-	conn, _, err := websocket.DefaultDialer.Dial(c.opts.addr, nil)
+func (c *wsClient) DialAndServe(ctx context.Context, h Handler) error {
+	conn, _, err := websocket.DefaultDialer.DialContext(ctx, c.opts.addr, nil)
 	if err != nil {
 		return err
 	}
@@ -21,15 +21,6 @@ func (c *wsClient) DialAndServe(h Handler) error {
 
 	wsr := newWsReader(conn)
 	wsw := newWsWriter(conn)
-	ctx := context.Background()
-
-	// conn.SetReadDeadline(time.Now().Add(readTimeout))
-	// origPingHandler := conn.PingHandler()
-	// conn.SetPingHandler(func(appData string) error {
-	// 	updateReadDeadline(conn)
-	// 	// log.Println("@@send pong", appData)
-	// 	return origPingHandler(appData)
-	// })
 
 	done := make(chan struct{})
 	go startPing(conn, done)
