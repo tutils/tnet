@@ -18,7 +18,7 @@
 - **tun** - 数据隧道。任何可进行数据通信的逻辑，将在这里被抽象为Reader和Writer，默认管道通信协议为websocket。
 - **endpoint** - 端。端到端通过隧道通信。默认的隧道处理器可将远端的TCP服务代理到本地。
 - **crypt** - 加密。通过修饰实现Reader或Writer的加密。
-- **cmd** - 命令解析。目前提供了两种子命令proxy和agent。
+- **cmd** - 命令解析。目前提供了四种子命令：proxy、agent、server和httpsrv。
 - **tnet** - 命令行界面。
 
 ## 开发
@@ -33,9 +33,10 @@ package main
 import (
     "context"
     "fmt"
-    "github.com/tutils/tnet/tcp"
     "log"
     "net"
+
+    "github.com/tutils/tnet/tcp"
 )
 
 type handler struct {
@@ -82,10 +83,12 @@ func main() {
 package main
 
 import (
+    "context"
+    "log"
+
     "github.com/tutils/tnet/crypt/xor"
     "github.com/tutils/tnet/proxy"
     "github.com/tutils/tnet/tun"
-    "log"
 )
 
 func main() {
@@ -110,7 +113,7 @@ func main() {
     )
     // 启动代理
     // 当然如果需要提供完整TCP代理服务，还需要在远端启动一个agent
-    if err := p.Serve(); err != nil {
+    if err := p.Serve(context.Background()); err != nil {
         log.Fatalln(err)
     }
 }
@@ -141,7 +144,134 @@ p := proxy.NewProxy(
 
 ## 命令行界面
 
-详见 ```tnet --help```。
+### 命令概览
+
+```shell
+tnet [flags]
+tnet [command]
+```
+
+### 可用命令
+
+- **agent** - TCP隧道代理服务端
+- **proxy** - TCP隧道代理客户端
+- **server** - 启动tnet管理服务器
+- **httpsrv** - HTTP文件服务器
+- **completion** - 为您的shell生成自动补全脚本
+
+### 命令用法
+
+#### 1. Proxy 命令
+
+启动TCP隧道代理：
+
+```bash
+# 正常模式：proxy主动连接到agent
+tnet proxy --listen=0.0.0.0:56080 --connect=127.0.0.1:3128 --tunnel-connect=ws://123.45.67.89:8080/stream --crypt-key=816559
+
+# 反向模式：proxy等待agent连接
+tnet proxy --tunnel-listen=ws://0.0.0.0:8080/stream --connect=127.0.0.1:3128 --crypt-key=816559
+
+# 带命令执行功能
+tnet proxy --listen=0.0.0.0:56080 --execute="ls -la" --tunnel-connect=ws://123.45.67.89:8080/stream --crypt-key=816559
+```
+
+#### 2. Agent 命令
+
+启动TCP隧道代理客户端：
+
+```bash
+# 正常模式：agent等待proxy连接
+tnet agent --tunnel-listen=ws://0.0.0.0:8080/stream --crypt-key=816559
+
+# 反向模式：agent主动连接到proxy
+tnet agent --tunnel-connect=ws://proxy-server:8080/stream --crypt-key=816559
+
+# 启用远程命令执行（安全警告：仅在可信输入时使用）
+tnet agent --tunnel-listen=ws://0.0.0.0:8080/stream --enabled-execute --crypt-key=816559
+```
+
+#### 3. Server 命令
+
+启动带web界面的tnet管理服务器：
+
+```bash
+tnet server --listen=0.0.0.0:8080
+```
+
+#### 4. HTTPSrv 命令
+
+启动HTTP文件服务器，支持文件浏览、上传和下载功能：
+
+```bash
+tnet httpsrv --listen=0.0.0.0:8080
+```
+
+#### 5. Completion 命令
+
+为您的shell生成自动补全脚本：
+
+```bash
+# Bash
+eval "$(tnet completion bash)"
+
+# Zsh
+eval "$(tnet completion zsh)"
+
+# 添加到shell配置文件中以永久生效
+echo "eval \"$(tnet completion $(basename $SHELL))\"" >> ~/.bashrc
+```
+
+## 将TNet作为系统服务使用
+
+### Linux (Systemd)
+
+1. 复制服务文件：
+
+```bash
+sudo cp /path/to/tnet/service/tnet.service /etc/systemd/system/
+```
+
+2. 编辑服务文件以匹配您的配置：
+
+```bash
+sudo vi /etc/systemd/system/tnet.service
+```
+
+3. 启用并启动服务：
+
+```bash
+sudo systemctl enable tnet.service
+sudo systemctl start tnet.service
+sudo systemctl status tnet.service
+```
+
+### macOS (Launchd)
+
+1. 将plist文件复制到LaunchAgents目录：
+
+```bash
+sudo cp /path/to/tnet/service/com.tutils.tnet.proxy.plist /Library/LaunchAgents/
+```
+
+2. 编辑plist文件以匹配您的配置：
+
+```bash
+sudo vi /Library/LaunchAgents/com.tutils.tnet.proxy.plist
+```
+
+3. 加载并启动服务：
+
+```bash
+sudo launchctl load /Library/LaunchAgents/com.tutils.tnet.proxy.plist
+sudo launchctl start com.tutils.tnet.proxy
+```
+
+## 服务配置文件
+
+- **tnet.service** - Linux系统的Systemd服务文件
+- **com.tutils.tnet.proxy.plist** - macOS系统的Launchd plist文件
+- **completion.sh** - Bash和Zsh shell的自动补全脚本
 
 ## 协议
 

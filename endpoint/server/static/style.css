@@ -161,6 +161,26 @@ h2 {
     color: #555;
 }
 
+/* Align checkboxes/radio buttons with their text */
+.form-group label input[type="checkbox"],
+.form-group label input[type="radio"] {
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 8px;
+    margin-bottom: 0;
+    width: auto;
+}
+
+/* Style for checkbox/radio labels */
+.form-group label:has(input[type="checkbox"]),
+.form-group label:has(input[type="radio"]) {
+    display: inline-flex;
+    align-items: center;
+    font-weight: normal;
+    margin-bottom: 8px;
+    width: auto;
+}
+
 .form-group input,
 .form-group textarea {
     width: 100%;

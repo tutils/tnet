@@ -18,7 +18,7 @@ A plugin-based network development toolkit.
 - **tun** - Data tunnel. Any logic that can perform data communication will be abstracted here as Reader and Writer, with websocket as the default pipeline communication protocol.
 - **endpoint** - Endpoint. End-to-end communication through tunnels. The default tunnel handler can proxy remote TCP services to local.
 - **crypt** - Encryption. Implement encryption by decorating Reader or Writer.
-- **cmd** - Command parsing. Currently provides two subcommands: proxy and agent.
+- **cmd** - Command parsing. Currently provides four subcommands: proxy, agent, server, and httpsrv.
 - **tnet** - Command line interface.
 
 ## Development
@@ -33,9 +33,10 @@ package main
 import (
     "context"
     "fmt"
-    "github.com/tutils/tnet/tcp"
     "log"
     "net"
+
+    "github.com/tutils/tnet/tcp"
 )
 
 type handler struct {
@@ -82,10 +83,12 @@ func main() {
 package main
 
 import (
+    "context"
+    "log"
+
     "github.com/tutils/tnet/crypt/xor"
     "github.com/tutils/tnet/proxy"
     "github.com/tutils/tnet/tun"
-    "log"
 )
 
 func main() {
@@ -110,7 +113,7 @@ func main() {
     )
     // Start proxy
     // Of course, to provide complete TCP proxy service, you also need to start an agent on the remote end
-    if err := p.Serve(); err != nil {
+    if err := p.Serve(context.Background()); err != nil {
         log.Fatalln(err)
     }
 }
@@ -141,7 +144,134 @@ p := proxy.NewProxy(
 
 ## Command Line Interface
 
-See ```tnet --help``` for details.
+### Command Overview
+
+```shell
+tnet [flags]
+tnet [command]
+```
+
+### Available Commands
+
+- **agent** - TCP tunnel agent
+- **proxy** - TCP tunnel proxy
+- **server** - Start tnet management server
+- **httpsrv** - HTTP file server
+- **completion** - Generate completion script for your shell
+
+### Command Usage
+
+#### 1. Proxy Command
+
+Start TCP tunnel proxy:
+
+```bash
+# Normal mode: proxy actively connects to agent
+tnet proxy --listen=0.0.0.0:56080 --connect=127.0.0.1:3128 --tunnel-connect=ws://123.45.67.89:8080/stream --crypt-key=816559
+
+# Reverse mode: proxy waits for agent to connect
+tnet proxy --tunnel-listen=ws://0.0.0.0:8080/stream --connect=127.0.0.1:3128 --crypt-key=816559
+
+# With command execution
+tnet proxy --listen=0.0.0.0:56080 --execute="ls -la" --tunnel-connect=ws://123.45.67.89:8080/stream --crypt-key=816559
+```
+
+#### 2. Agent Command
+
+Start TCP tunnel agent:
+
+```bash
+# Normal mode: agent waits for proxy to connect
+tnet agent --tunnel-listen=ws://0.0.0.0:8080/stream --crypt-key=816559
+
+# Reverse mode: agent actively connects to proxy
+tnet agent --tunnel-connect=ws://proxy-server:8080/stream --crypt-key=816559
+
+# Enable remote command execution (SECURITY WARNING: only use with trusted input)
+tnet agent --tunnel-listen=ws://0.0.0.0:8080/stream --enabled-execute --crypt-key=816559
+```
+
+#### 3. Server Command
+
+Start tnet management server with web interface:
+
+```bash
+tnet server --listen=0.0.0.0:8080
+```
+
+#### 4. HTTPSrv Command
+
+Start HTTP file server with file browsing, uploading, and downloading capabilities:
+
+```bash
+tnet httpsrv --listen=0.0.0.0:8080
+```
+
+#### 5. Completion Command
+
+Generate completion script for your shell:
+
+```bash
+# Bash
+eval "$(tnet completion bash)"
+
+# Zsh
+eval "$(tnet completion zsh)"
+
+# Add to your shell config file for permanent effect
+echo "eval \"$(tnet completion $(basename $SHELL))\"" >> ~/.bashrc
+```
+
+## Using TNet as a System Service
+
+### Linux (Systemd)
+
+1. Copy the service file:
+
+```bash
+sudo cp /path/to/tnet/service/tnet.service /etc/systemd/system/
+```
+
+2. Edit the service file to match your configuration:
+
+```bash
+sudo vi /etc/systemd/system/tnet.service
+```
+
+3. Enable and start the service:
+
+```bash
+sudo systemctl enable tnet.service
+sudo systemctl start tnet.service
+sudo systemctl status tnet.service
+```
+
+### macOS (Launchd)
+
+1. Copy the plist file to LaunchAgents directory:
+
+```bash
+sudo cp /path/to/tnet/service/com.tutils.tnet.proxy.plist /Library/LaunchAgents/
+```
+
+2. Edit the plist file to match your configuration:
+
+```bash
+sudo vi /Library/LaunchAgents/com.tutils.tnet.proxy.plist
+```
+
+3. Load and start the service:
+
+```bash
+sudo launchctl load /Library/LaunchAgents/com.tutils.tnet.proxy.plist
+sudo launchctl start com.tutils.tnet.proxy
+```
+
+## Service Configuration Files
+
+- **tnet.service** - Systemd service file for Linux
+- **com.tutils.tnet.proxy.plist** - Launchd plist file for macOS
+- **completion.sh** - Auto-completion script for bash and zsh shells
 
 ## License
 
