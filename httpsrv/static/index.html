@@ -4,41 +4,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>文件服务器</title>
+    <title>File Server</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 
 <body>
     <div class="container">
-        <h1>文件服务器</h1>
+        <h1>File Server</h1>
 
-        <!-- 文件上传区域 -->
+        <!-- File upload area -->
         <div class="upload-section">
             <div class="upload-header">
-                <h3>上传文件</h3>
+                <h3>Upload Files</h3>
             </div>
             <form id="upload-form" enctype="multipart/form-data" class="upload-form-compact">
                 <input type="file" id="file-input" name="file" multiple>
-                <button type="submit" class="btn btn-small">上传</button>
+                <button type="submit" class="btn btn-small">Upload</button>
             </form>
             <div id="upload-status" class="status status-compact"></div>
         </div>
 
-        <!-- 文件列表区域 -->
+        <!-- File list area -->
         <div class="files-section">
             <div class="section-header">
-                <h2>文件列表</h2>
+                <h2>File List</h2>
                 <div class="filter-container">
-                    <input type="text" id="file-filter" placeholder="输入文件名筛选..." />
+                    <input type="text" id="file-filter" placeholder="Filter files by name..." />
                 </div>
             </div>
-            <!-- 路径导航 -->
+            <!-- Path navigation -->
             <div id="path-nav" class="path-nav">
-                <!-- 路径导航将通过JavaScript动态加载 -->
+                <!-- Path navigation will be dynamically loaded by JavaScript -->
             </div>
             <div id="file-list" class="file-list">
-                <!-- 文件列表将通过JavaScript动态加载 -->
-                <p>加载中...</p>
+                <!-- File list will be dynamically loaded by JavaScript -->
+                <p>Loading...</p>
             </div>
         </div>
     </div>

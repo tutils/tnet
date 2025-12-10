@@ -50,7 +50,7 @@ func StartServer(listenAddress string) error {
 	workDir, err := os.Getwd()
 	if err != nil {
 		log.Printf("Warning: Failed to get current working directory: %v", err)
-		workDir = "未知目录"
+		workDir = "unknown directory"
 	}
 
 	// 启动服务器
@@ -108,7 +108,7 @@ func handleGetFileList(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodGet {
 		log.Printf("[ERROR] %s Method not allowed, expected GET, got %s", clientIP, r.Method)
-		http.Error(w, "只支持GET请求", http.StatusMethodNotAllowed)
+		http.Error(w, "Only GET method is allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -148,7 +148,7 @@ func handleGetFileList(w http.ResponseWriter, r *http.Request) {
 	// 返回JSON响应
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		log.Printf("[ERROR] %s Failed to encode file list response: %v", clientIP, err)
-		http.Error(w, "处理响应失败", http.StatusInternalServerError)
+		http.Error(w, "Failed to encode file list response", http.StatusInternalServerError)
 		return
 	}
 }
@@ -158,7 +158,7 @@ func getDirectoryFiles(subdir string) ([]FileInfo, error) {
 	// 获取当前工作目录
 	baseDir, err := os.Getwd()
 	if err != nil {
-		return nil, fmt.Errorf("获取当前目录失败: %w", err)
+		return nil, fmt.Errorf("failed to get current directory: %w", err)
 	}
 
 	// 构建完整路径
@@ -167,23 +167,23 @@ func getDirectoryFiles(subdir string) ([]FileInfo, error) {
 	// 安全检查：确保不会访问到工作目录之外
 	targetDir, err = filepath.Abs(targetDir)
 	if err != nil {
-		return nil, fmt.Errorf("获取绝对路径失败: %w", err)
+		return nil, fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
 	baseDir, err = filepath.Abs(baseDir)
 	if err != nil {
-		return nil, fmt.Errorf("获取基础目录绝对路径失败: %w", err)
+		return nil, fmt.Errorf("failed to get base directory absolute path: %w", err)
 	}
 
 	// 确保目标目录在基础目录之内
 	if !strings.HasPrefix(targetDir, baseDir) {
-		return nil, fmt.Errorf("访问被拒绝：不能访问工作目录之外的路径")
+		return nil, fmt.Errorf("access denied: cannot access paths outside the working directory")
 	}
 
 	// 读取目录内容
 	dirEntries, err := os.ReadDir(targetDir)
 	if err != nil {
-		return nil, fmt.Errorf("读取目录失败: %w", err)
+		return nil, fmt.Errorf("failed to read directory: %w", err)
 	}
 
 	// 转换为文件信息列表
@@ -255,7 +255,7 @@ func handleFileUpload(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPost {
 		log.Printf("[ERROR] %s Method not allowed, expected POST, got %s", clientIP, r.Method)
-		http.Error(w, "只支持POST请求", http.StatusMethodNotAllowed)
+		http.Error(w, "Only POST requests are supported", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -263,7 +263,7 @@ func handleFileUpload(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseMultipartForm(10 << 20) // 10MB
 	if err != nil {
 		log.Printf("[ERROR] %s Failed to parse form: %v", clientIP, err)
-		http.Error(w, "解析表单失败", http.StatusBadRequest)
+		http.Error(w, "failed to parse form", http.StatusBadRequest)
 		return
 	}
 
@@ -271,7 +271,7 @@ func handleFileUpload(w http.ResponseWriter, r *http.Request) {
 	file, header, err := r.FormFile("file")
 	if err != nil {
 		log.Printf("[ERROR] %s Failed to get uploaded file: %v", clientIP, err)
-		http.Error(w, "获取上传文件失败", http.StatusBadRequest)
+		http.Error(w, "failed to get uploaded file", http.StatusBadRequest)
 		return
 	}
 	defer file.Close()
@@ -279,14 +279,14 @@ func handleFileUpload(w http.ResponseWriter, r *http.Request) {
 	// 获取目标路径（从表单中读取）
 	targetPath := r.FormValue("path")
 	if targetPath == "" {
-		targetPath = "." // 默认使用当前目录
+		targetPath = "." // Use current directory by default
 	}
 
 	// 获取当前工作目录
 	baseDir, err := os.Getwd()
 	if err != nil {
 		log.Printf("[ERROR] %s Failed to get current directory: %v", clientIP, err)
-		http.Error(w, "服务器错误", http.StatusInternalServerError)
+		http.Error(w, "server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -297,28 +297,28 @@ func handleFileUpload(w http.ResponseWriter, r *http.Request) {
 	targetDir, err = filepath.Abs(targetDir)
 	if err != nil {
 		log.Printf("[ERROR] %s Failed to get absolute path: %v", clientIP, err)
-		http.Error(w, "无效的路径", http.StatusBadRequest)
+		http.Error(w, "invalid path", http.StatusBadRequest)
 		return
 	}
 
 	baseDir, err = filepath.Abs(baseDir)
 	if err != nil {
 		log.Printf("[ERROR] %s Failed to get base directory absolute path: %v", clientIP, err)
-		http.Error(w, "服务器错误", http.StatusInternalServerError)
+		http.Error(w, "Server Error", http.StatusInternalServerError)
 		return
 	}
 
 	// 确保目标目录在基础目录之内
 	if !strings.HasPrefix(targetDir, baseDir) {
 		log.Printf("[ERROR] %s Attempted to access path outside working directory: %s", clientIP, targetPath)
-		http.Error(w, "访问被拒绝：不能访问工作目录之外的路径", http.StatusForbidden)
+		http.Error(w, "access denied: cannot access paths outside the working directory", http.StatusForbidden)
 		return
 	}
 
 	// 确保目标目录存在
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
 		log.Printf("[ERROR] %s Failed to create directory: %v", clientIP, err)
-		http.Error(w, "创建目录失败", http.StatusInternalServerError)
+		http.Error(w, "failed to create directory", http.StatusInternalServerError)
 		return
 	}
 
@@ -329,7 +329,7 @@ func handleFileUpload(w http.ResponseWriter, r *http.Request) {
 	dst, err := os.Create(filepath.Join(targetDir, savedFilename))
 	if err != nil {
 		log.Printf("[ERROR] %s Failed to create file: %v", clientIP, err)
-		http.Error(w, "创建文件失败", http.StatusInternalServerError)
+		http.Error(w, "failed to create file", http.StatusInternalServerError)
 		return
 	}
 	defer dst.Close()
@@ -338,7 +338,7 @@ func handleFileUpload(w http.ResponseWriter, r *http.Request) {
 	size, err := io.Copy(dst, file)
 	if err != nil {
 		log.Printf("[ERROR] %s Failed to save file: %v", clientIP, err)
-		http.Error(w, "保存文件失败", http.StatusInternalServerError)
+		http.Error(w, "failed to save file", http.StatusInternalServerError)
 		return
 	}
 
@@ -404,7 +404,7 @@ func serveFileHandler(w http.ResponseWriter, r *http.Request) {
 	baseDir, err := os.Getwd()
 	if err != nil {
 		log.Printf("[ERROR] %s Failed to get current directory: %v", clientIP, err)
-		http.Error(w, "服务器错误", http.StatusInternalServerError)
+		http.Error(w, "Server Error", http.StatusInternalServerError)
 		return
 	}
 
@@ -415,21 +415,21 @@ func serveFileHandler(w http.ResponseWriter, r *http.Request) {
 	targetPath, err = filepath.Abs(targetPath)
 	if err != nil {
 		log.Printf("[ERROR] %s Failed to get absolute path: %v", clientIP, err)
-		http.Error(w, "无效的路径", http.StatusBadRequest)
+		http.Error(w, "Invalid path", http.StatusBadRequest)
 		return
 	}
 
 	baseDir, err = filepath.Abs(baseDir)
 	if err != nil {
 		log.Printf("[ERROR] %s Failed to get base directory absolute path: %v", clientIP, err)
-		http.Error(w, "服务器错误", http.StatusInternalServerError)
+		http.Error(w, "Server Error", http.StatusInternalServerError)
 		return
 	}
 
 	// 确保目标路径在基础目录之内
 	if !strings.HasPrefix(targetPath, baseDir) {
 		log.Printf("[ERROR] %s Attempted to access path outside working directory: %s", clientIP, filePath)
-		http.Error(w, "访问被拒绝：不能访问工作目录之外的路径", http.StatusForbidden)
+		http.Error(w, "Access denied: cannot access paths outside the working directory", http.StatusForbidden)
 		return
 	}
 
@@ -462,7 +462,7 @@ func serveDirectoryListing(w http.ResponseWriter, r *http.Request, requestPath s
 	indexContent, err := staticFiles.ReadFile("static/index.html")
 	if err != nil {
 		log.Printf("[ERROR] %s Failed to read static file: %v", r.RemoteAddr, err)
-		http.Error(w, "服务器错误", http.StatusInternalServerError)
+		http.Error(w, "Server Error", http.StatusInternalServerError)
 		return
 	}
 
@@ -487,7 +487,7 @@ func serveFileDownload(w http.ResponseWriter, r *http.Request, requestPath strin
 	fileInfo, err := file.Stat()
 	if err != nil {
 		log.Printf("[ERROR] %s Failed to get file info: %s - %v", clientIP, requestPath, err)
-		http.Error(w, "获取文件信息失败", http.StatusInternalServerError)
+		http.Error(w, "Failed to get file information", http.StatusInternalServerError)
 		return
 	}
 

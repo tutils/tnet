@@ -142,7 +142,7 @@ h2 {
     flex: 0 0 auto;
 }
 
-/* 筛选容器样式 */
+/* Filter Container Styles */
 .filter-container {
     display: flex;
     align-items: center;
@@ -175,7 +175,7 @@ h2 {
     color: #999;
 }
 
-/* 响应式调整 */
+/* Responsive Adjustments */
 @media (max-width: 768px) {
     .section-header {
         flex-direction: column;
@@ -192,7 +192,7 @@ h2 {
     }
 }
 
-/* 路径导航 */
+/* Path Navigation */
 .path-nav {
     margin-bottom: 20px;
     padding: 10px;
@@ -216,14 +216,14 @@ h2 {
     margin-right: 5px;
 }
 
-/* 文件列表 */
+/* File List */
 .file-list {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 10px;
 }
 
-/* 文件项样式 */
+/* File Item Styles */
 .file-item {
     border: 1px solid #ddd;
     border-radius: 4px;
@@ -237,7 +237,7 @@ h2 {
     transform: translateY(-1px);
 }
 
-/* 文件夹特殊样式 */
+/* Folder Special Styles */
 .file-item.directory {
     background-color: #e3f2fd;
     border-color: #90caf9;
@@ -247,7 +247,7 @@ h2 {
     background-color: #bbdefb;
 }
 
-/* 文件链接样式 */
+/* File Link Styles */
 .file-item a {
     display: flex;
     align-items: center;
@@ -261,7 +261,7 @@ h2 {
     font-weight: 500;
 }
 
-/* 文件图标 */
+/* File Icons */
 .file-icon {
     margin-right: 6px;
     font-size: 16px;
@@ -269,7 +269,7 @@ h2 {
     line-height: 1;
 }
 
-/* 文件信息 */
+/* File Information */
 .file-info {
     margin-bottom: 5px;
 }
@@ -325,7 +325,7 @@ h2 {
     margin-top: 3px;
 }
 
-/* 响应式设计 */
+/* Responsive Design */
 @media (max-width: 768px) {
     .file-list {
         grid-template-columns: 1fr;

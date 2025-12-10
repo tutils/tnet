@@ -8,8 +8,8 @@ import (
 // httpsrvCmd represents the agent command
 var httpsrvCmd = &cobra.Command{
 	Use:   "httpsrv",
-	Short: "HTTP文件服务器",
-	Long: `启动HTTP文件服务器，支持文件浏览、上传和下载功能。例如：
+	Short: "HTTP file server",
+	Long: `Start an HTTP file server with file browsing, uploading and downloading capabilities. For example:
   tnet httpsrv --listen 8080`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// 调用httpsrv包中的StartServer函数，使用正确的包导入

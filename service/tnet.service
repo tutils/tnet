@@ -20,7 +20,7 @@ StandardError=journal
 SyslogIdentifier=tnet-service
 Environment=NETWORK_ENABLED=1
 
-# 安全设置
+# Security settings
 NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectSystem=strict

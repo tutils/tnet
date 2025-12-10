@@ -28,7 +28,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 loadFileList(newPath);
             }
         } catch (e) {
-            console.error('处理URL变化失败:', e);
+            console.error('Failed to handle URL change:', e);
         }
     });
 });
@@ -62,7 +62,7 @@ async function loadFileList(path) {
         const response = await fetch(url);
 
         if (!response.ok) {
-            throw new Error(`服务器响应错误: ${response.status}`);
+            throw new Error(`Server response error: ${response.status}`);
         }
 
         const apiResponse = await response.json();
@@ -77,8 +77,8 @@ async function loadFileList(path) {
         if (!apiResponse || !apiResponse.success) {
             // API返回错误
             const errorMessage = apiResponse && apiResponse.error ?
-                `无法访问目录: ${apiResponse.error}` :
-                '无法访问目录: 服务器错误';
+                `Cannot access directory: ${apiResponse.error}` :
+                'Cannot access directory: Server error';
             fileListElement.innerHTML = `<p class="error-message">${errorMessage}</p>`;
             return;
         }
@@ -91,7 +91,7 @@ async function loadFileList(path) {
 
         // 检查文件列表是否为空
         if (files.length === 0) {
-            fileListElement.innerHTML = '<p>当前目录没有文件</p>';
+            fileListElement.innerHTML = '<p>No files in current directory</p>';
             return;
         }
 
@@ -124,7 +124,7 @@ async function loadFileList(path) {
                         </div>
                         <span class="file-size">${formattedSize}</span>
                     </div>
-                    <div class="file-date">修改时间: ${formattedDate}</div>
+                    <div class="file-date">Modified: ${formattedDate}</div>
                 `;
             } else {
                 // 文件项：点击下载
@@ -140,7 +140,7 @@ async function loadFileList(path) {
                         </div>
                         <span class="file-size">${formattedSize}</span>
                     </div>
-                    <div class="file-date">修改时间: ${formattedDate}</div>
+                    <div class="file-date">Modified: ${formattedDate}</div>
                 `;
             }
 
@@ -159,8 +159,8 @@ async function loadFileList(path) {
         });
 
     } catch (error) {
-        console.error('加载文件列表失败:', error);
-        fileListElement.innerHTML = `<p class="error">加载文件列表失败: ${error.message}</p>`;
+        console.error('Failed to load file list:', error);
+        fileListElement.innerHTML = `<p class="error">Failed to load file list: ${error.message}</p>`;
     }
 }
 
@@ -175,7 +175,7 @@ function applyFileFilter() {
     const filteredFiles = applyFileFilterToFiles(originalFileList);
 
     if (filteredFiles.length === 0) {
-        fileListElement.innerHTML = '<p>没有匹配的文件</p>';
+        fileListElement.innerHTML = '<p>No matching files</p>';
         return;
     }
 
@@ -205,7 +205,7 @@ function applyFileFilter() {
                         </div>
                         <span class="file-size">${formattedSize}</span>
                     </div>
-                    <div class="file-date">修改时间: ${formattedDate}</div>
+                    <div class="file-date">Modified: ${formattedDate}</div>
                 `;
         } else {
             // 文件项：点击下载
@@ -221,7 +221,7 @@ function applyFileFilter() {
                         </div>
                         <span class="file-size">${formattedSize}</span>
                     </div>
-                    <div class="file-date">修改时间: ${formattedDate}</div>
+                    <div class="file-date">Modified: ${formattedDate}</div>
                 `;
         }
 
@@ -265,7 +265,7 @@ function updatePathNavigation(path) {
     const pathParts = path === '.' ? [] : path.split('/');
 
     // 创建导航HTML
-    let navHtml = '<a href="javascript:void(0)" data-path=".">根目录</a>';
+    let navHtml = '<a href="javascript:void(0)" data-path=".">[Root]</a>';
 
     // 添加每个路径部分
     let currentSubPath = '.';
@@ -297,7 +297,7 @@ async function handleFileUpload(event) {
     const statusElement = document.getElementById('upload-status');
 
     if (fileInput.files.length === 0) {
-        showStatus(statusElement, '请选择要上传的文件', 'error');
+        showStatus(statusElement, 'Please select files to upload', 'error');
         return;
     }
 
@@ -308,7 +308,7 @@ async function handleFileUpload(event) {
         formData.append('file', file);
 
         try {
-            showStatus(statusElement, `正在上传 ${file.name}...`, '');
+            showStatus(statusElement, `Uploading ${file.name}...`, '');
 
             // 在FormData中添加当前路径信息
             formData.append('path', currentPath);
@@ -319,22 +319,22 @@ async function handleFileUpload(event) {
             });
 
             if (!response.ok) {
-                throw new Error(`上传失败: ${response.status}`);
+                throw new Error(`Upload failed: ${response.status}`);
             }
 
             const result = await response.json();
 
             // 如果文件名被修改（因为冲突），显示新文件名
             const displayName = result.originalName !== result.savedName ?
-                `${result.originalName} (已重命名为: ${result.savedName})` :
+                `${result.originalName} (renamed to: ${result.savedName})` :
                 result.originalName;
 
-            showStatus(statusElement, `文件 ${displayName} 上传成功`, 'success');
+            showStatus(statusElement, `File ${displayName} uploaded successfully`, 'success');
 
         } catch (error) {
-            console.error('文件上传失败:', error);
-            showStatus(statusElement, `文件 ${file.name} 上传失败: ${error.message}`, 'error');
-            // 继续上传其他文件，不中断
+            console.error('File upload failed:', error);
+            showStatus(statusElement, `File ${file.name} upload failed: ${error.message}`, 'error');
+            // Continue uploading other files without interruption
         }
     }
 
